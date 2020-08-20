@@ -57,8 +57,20 @@ pub trait Register:
     fn overflowing_mul_high_unsigned(&self, rhs: &Self) -> Self;
     fn overflowing_mul_high_signed_unsigned(&self, rhs: &Self) -> Self;
 
+    fn not(&self) -> Self;
+
+    // The clz operation counts the number of 0 bits at the MSB end of the argument.
+    fn clz(&self) -> Self;
+    // The ctz operation counts the number of 0 bits at the LSB end of the argument.
+    fn ctz(&self) -> Self;
+    // Counts the number of 1 bits.
+    fn pcnt(&self) -> Self;
+
     fn signed_shl(&self, rhs: &Self) -> Self;
     fn signed_shr(&self, rhs: &Self) -> Self;
+
+    fn rotate_left(&self, rhs: &Self) -> Self;
+    fn rotate_right(&self, rhs: &Self) -> Self;
 
     // Zero extend from start_bit to the highest bit, note
     // start_bit is offset by 0
@@ -226,12 +238,44 @@ impl Register for u32 {
         (value >> 32) as u32
     }
 
+    fn not(&self) -> u32 {
+        !(*self)
+    }
+
+    fn clz(&self) -> u32 {
+        self.leading_zeros()
+    }
+
+    fn ctz(&self) -> u32 {
+        self.trailing_zeros()
+    }
+
+    fn pcnt(&self) -> u32 {
+        self.count_ones()
+    }
+
     fn signed_shl(&self, rhs: &u32) -> u32 {
         (*self as i32).shl(*rhs) as u32
     }
 
     fn signed_shr(&self, rhs: &u32) -> u32 {
         (*self as i32).shr(*rhs) as u32
+    }
+
+    // fn unsigned_shl(&self, rhs: &u32) -> u32 {
+    //     (*self).shl(*rhs)
+    // }
+
+    // fn unsigned_shr(&self, rhs: &u32) -> u32 {
+    //     (*self).shr(*rhs)
+    // }
+
+    fn rotate_left(&self, rhs: &u32) -> u32 {
+        (*self as u32).rotate_left(*rhs) as u32
+    }
+
+    fn rotate_right(&self, rhs: &u32) -> u32 {
+        (*self as u32).rotate_right(*rhs) as u32
     }
 
     fn zero_extend(&self, start_bit: &u32) -> u32 {
@@ -431,12 +475,44 @@ impl Register for u64 {
         (value >> 64) as u64
     }
 
+    fn not(&self) -> u64 {
+        !(*self)
+    }
+
+    fn clz(&self) -> u64 {
+        self.leading_zeros() as u64
+    }
+
+    fn ctz(&self) -> u64 {
+        self.trailing_zeros() as u64
+    }
+
+    fn pcnt(&self) -> u64 {
+        self.count_ones() as u64
+    }
+
     fn signed_shl(&self, rhs: &u64) -> u64 {
         (*self as i64).shl(*rhs) as u64
     }
 
     fn signed_shr(&self, rhs: &u64) -> u64 {
         (*self as i64).shr(*rhs) as u64
+    }
+
+    // fn unsigned_shl(&self, rhs: &u64) -> u64 {
+    //     (*self).shl(*rhs)
+    // }
+
+    // fn unsigned_shr(&self, rhs: &u64) -> u64 {
+    //     (*self).shr(*rhs)
+    // }
+
+    fn rotate_left(&self, rhs: &Self) -> u64 {
+        (*self as u64).rotate_left((*rhs) as u32) as u64
+    }
+
+    fn rotate_right(&self, rhs: &Self) -> u64 {
+        (*self as u64).rotate_right((*rhs) as u32) as u64
     }
 
     fn zero_extend(&self, start_bit: &u64) -> u64 {
