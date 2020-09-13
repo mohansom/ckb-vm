@@ -4,6 +4,7 @@ mod register;
 mod utils;
 
 pub mod ast;
+pub mod b;
 pub mod i;
 pub mod m;
 pub mod rvc;
@@ -194,6 +195,47 @@ impl Utype {
 
     pub fn immediate_s(self) -> Immediate {
         ((self.0 as i64) >> 32) as Immediate
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct R4type(pub Instruction);
+
+impl R4type {
+    pub fn new(
+        op: InstructionOpcode,
+        rd: RegisterIndex,
+        rs1: RegisterIndex,
+        rs2: RegisterIndex,
+        rs3: RegisterIndex,
+    ) -> Self {
+        R4type(
+            u64::from(op as u8)
+                | (u64::from(rd as u8) << 8)
+                | (u64::from(rs1 as u8) << 32)
+                | (u64::from(rs2 as u8) << 40)
+                | (u64::from(rs3 as u8) << 48),
+        )
+    }
+
+    pub fn op(self) -> InstructionOpcode {
+        self.0 as u8 as InstructionOpcode
+    }
+
+    pub fn rd(self) -> RegisterIndex {
+        (self.0 >> 8) as u8 as RegisterIndex
+    }
+
+    pub fn rs1(self) -> RegisterIndex {
+        (self.0 >> 32) as u8 as RegisterIndex
+    }
+
+    pub fn rs2(self) -> RegisterIndex {
+        (self.0 >> 40) as u8 as RegisterIndex
+    }
+
+    pub fn rs3(self) -> RegisterIndex {
+        (self.0 >> 48) as u8 as RegisterIndex
     }
 }
 

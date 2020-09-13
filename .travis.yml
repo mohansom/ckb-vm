@@ -15,8 +15,8 @@ matrix:
     - os: osx
       rust: 1.41.0
       install:
-        - cargo fmt --version || rustup component add rustfmt-preview
-        - cargo clippy --version || rustup component add clippy-preview
+        - cargo fmt --version || rustup component add rustfmt
+        - cargo clippy --version || rustup component add clippy
       env: SUITE=ci
     - rust: stable
       install:

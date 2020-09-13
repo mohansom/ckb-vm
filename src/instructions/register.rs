@@ -57,8 +57,18 @@ pub trait Register:
     fn overflowing_mul_high_unsigned(&self, rhs: &Self) -> Self;
     fn overflowing_mul_high_signed_unsigned(&self, rhs: &Self) -> Self;
 
+    // The clz operation counts the number of 0 bits at the MSB end of the argument.
+    fn clz(&self) -> Self;
+    // The ctz operation counts the number of 0 bits at the LSB end of the argument.
+    fn ctz(&self) -> Self;
+    // Counts the number of 1 bits.
+    fn pcnt(&self) -> Self;
+
     fn signed_shl(&self, rhs: &Self) -> Self;
     fn signed_shr(&self, rhs: &Self) -> Self;
+
+    fn rotate_left(&self, rhs: &Self) -> Self;
+    fn rotate_right(&self, rhs: &Self) -> Self;
 
     // Zero extend from start_bit to the highest bit, note
     // start_bit is offset by 0
@@ -244,6 +254,26 @@ impl Register for u32 {
         let start_bit = min(*start_bit, 32);
         debug_assert!(start_bit > 0);
         (((*self << (32 - start_bit)) as i32) >> (32 - start_bit)) as u32
+    }
+
+    fn clz(&self) -> u32 {
+        self.leading_zeros()
+    }
+
+    fn ctz(&self) -> u32 {
+        self.trailing_zeros()
+    }
+
+    fn pcnt(&self) -> u32 {
+        self.count_ones()
+    }
+
+    fn rotate_left(&self, rhs: &u32) -> u32 {
+        (*self as u32).rotate_left(*rhs) as u32
+    }
+
+    fn rotate_right(&self, rhs: &u32) -> u32 {
+        (*self as u32).rotate_right(*rhs) as u32
     }
 
     fn to_i8(&self) -> i8 {
@@ -449,6 +479,26 @@ impl Register for u64 {
         let start_bit = min(*start_bit, 64);
         debug_assert!(start_bit > 0);
         (((*self << (64 - start_bit)) as i64) >> (64 - start_bit)) as u64
+    }
+
+    fn clz(&self) -> u64 {
+        self.leading_zeros() as u64
+    }
+
+    fn ctz(&self) -> u64 {
+        self.trailing_zeros() as u64
+    }
+
+    fn pcnt(&self) -> u64 {
+        self.count_ones() as u64
+    }
+
+    fn rotate_left(&self, rhs: &Self) -> u64 {
+        (*self as u64).rotate_left((*rhs) as u32) as u64
+    }
+
+    fn rotate_right(&self, rhs: &Self) -> u64 {
+        (*self as u64).rotate_right((*rhs) as u32) as u64
     }
 
     fn to_i8(&self) -> i8 {

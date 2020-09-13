@@ -260,6 +260,26 @@ impl Register for Value {
         )
     }
 
+    fn clz(&self) -> Value {
+        unimplemented!()
+    }
+
+    fn ctz(&self) -> Value {
+        unimplemented!()
+    }
+
+    fn pcnt(&self) -> Value {
+        unimplemented!()
+    }
+
+    fn rotate_left(&self, _rhs: &Value) -> Value {
+        unimplemented!()
+    }
+
+    fn rotate_right(&self, _rhs: &Value) -> Value {
+        unimplemented!()
+    }
+
     fn signed_shl(&self, rhs: &Value) -> Value {
         // Signed shl and unsigned shl are the same thing
         self.clone().shl(rhs.clone())
