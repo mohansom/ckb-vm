@@ -83,23 +83,31 @@
 #define RS1 %rdx
 #define RS2r %rbp
 #define RS2s RD_RS2s
+#define RS3 %r12
 #define IMMEDIATE %rcx
 #define TEMP1 %rdi
 #define TEMP2 %r10
+#define TEMP3 %r11
 
 #define RDd_RS2sd %eax
 #define RDd RDd_RS2sd
 #define RS1d %edx
+#define RS1h %dx
 #define RS1b %dl
 #define RS2rd %ebp
+#define RS2rb %bpl
 #define RS2sd %eax
 #define RS2sb %al
 #define RS2sh %ax
+#define RS3d %r12d
 #define IMMEDIATEb %cl
 #define IMMEDIATEd %ecx
 #define TEMP1b %dil
 #define TEMP1d %edi
 #define TEMP2d %r10d
+#define TEMP2b %r10b
+#define TEMP3d %r11d
+#define TEMP3b %r11b
 
 #define PC_ADDRESS \
   CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_PC(MACHINE)
@@ -277,6 +285,12 @@
   sar $8, %rcx
 
 #define DECODE_U
+
+#define DECODE_R4 \
+  movzbl %cl, RS1d; \
+  movzbl %ch, RS2rd; \
+  sar $16, %rcx; \
+  movzbl %cl, RS3d
 
 #ifdef __APPLE__
 .globl _ckb_vm_x64_execute
@@ -1312,6 +1326,2056 @@ ckb_vm_x64_execute:
   WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
+.CKB_VM_ASM_LABEL_OP_CLZ:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  cmp $0, RS1
+  je .clz_branch
+  bsr RS1, RS1
+  neg RS1
+  addq $63, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.clz_branch:
+  WRITE_RD($64)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CLZW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  cmp $0, RS1d
+  je .clzw_branch
+  bsr RS1d, RS1d
+  neg RS1d
+  addq $31, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.clzw_branch:
+  WRITE_RD($32)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CTZ:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  cmp $0, RS1
+  je .ctz_branch
+  bsf RS1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.ctz_branch:
+  WRITE_RD($64)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CTZW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  cmp $0, RS1d
+  je .ctzw_branch
+  bsf RS1d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.ctzw_branch:
+  WRITE_RD($32)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_PCNT:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  popcnt RS1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_PCNTW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  popcnt RS1d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_ANDN:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  not RS2r
+  and RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_ORN:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  not RS2r
+  or RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_XNOR:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  not RS2r
+  xor RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_PACK:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  shl $32, RS1
+  shr $32, RS1
+  shl $32, RS2r
+  or RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_PACKU:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  shr $32, RS1
+  shr $32, RS2r
+  shl $32, RS2r
+  or RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_PACKH:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  andq $0xff, RS1
+  andq $0xff, RS2r
+  shl $8, RS2r
+  or RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_PACKW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  shl $16, RS1d
+  shr $16, RS1d
+  shl $16, RS2rd
+  or RS2rd, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_PACKUW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  shr $16, RS1d
+  shr $16, RS2rd
+  shl $16, RS2rd
+  or RS2rd, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_MIN:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  cmp RS1, RS2r
+  movq RS1, TEMP1
+  cmovle RS2r, TEMP1
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_MINU:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  cmp RS1, RS2r
+  movq RS1, TEMP1
+  cmovbe RS2r, TEMP1
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_MAX:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  cmp RS1, RS2r
+  movq RS1, TEMP1
+  cmovge RS2r, TEMP1
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_MAXU:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  cmp RS1, RS2r
+  movq RS1, TEMP1
+  cmovae RS2r, TEMP1
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SEXTB:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movsx RS1b, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SEXTH:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movsx RS1h, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBSET:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  movq $1, TEMP1
+  shl %cl, TEMP1
+  or TEMP1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBSETW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  mov $1, TEMP1d
+  shl %cl, TEMP1d
+  or TEMP1d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBSETI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, %rcx
+  movq $1, TEMP1
+  shl %cl, TEMP1
+  or TEMP1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBSETIW:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, %rcx
+  mov $1, TEMP1d
+  shl %cl, TEMP1d
+  or TEMP1d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBCLR:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  movq $1, TEMP1
+  shl %cl, TEMP1
+  not TEMP1
+  and TEMP1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBCLRW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  mov $1, TEMP1d
+  shl %cl, TEMP1d
+  not TEMP1d
+  and TEMP1d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBCLRI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, %rcx
+  movq $1, TEMP1
+  shl %cl, TEMP1
+  not TEMP1
+  and TEMP1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBCLRIW:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, %rcx
+  mov $1, TEMP1d
+  shl %cl, TEMP1d
+  not TEMP1d
+  and TEMP1d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBINV:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  movq $1, TEMP1
+  shl %cl, TEMP1
+  xor TEMP1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBINVW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  mov $1, TEMP1d
+  shl %cl, TEMP1d
+  xor TEMP1d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBINVI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, %rcx
+  movq $1, TEMP1
+  shl %cl, TEMP1
+  xor TEMP1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBINVIW:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, %rcx
+  mov $1, TEMP1d
+  shl %cl, TEMP1d
+  xor TEMP1d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBEXT:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  shr %cl, RS1
+  and $1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBEXTW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  shr %cl, RS1d
+  and $1, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SBEXTI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, %rcx
+  shr %cl, RS1
+  and $1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SLO:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  andq $63, %rcx
+  not RS1
+  shl %cl, RS1
+  not RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SLOI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, %rcx
+  andq $63, %rcx
+  not RS1
+  shl %cl, RS1
+  not RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SLOW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  andq $63, %rcx
+  not RS1d
+  shl %cl, RS1d
+  not RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SLOIW:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, %rcx
+  andq $63, %rcx
+  not RS1d
+  shl %cl, RS1d
+  not RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SRO:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  andq $63, %rcx
+  not RS1
+  shr %cl, RS1
+  not RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SROI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, %rcx
+  andq $63, %rcx
+  not RS1
+  shr %cl, RS1
+  not RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SROW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  andq $63, %rcx
+  not RS1d
+  shr %cl, RS1d
+  not RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SROIW:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, %rcx
+  andq $63, %rcx
+  not RS1d
+  shr %cl, RS1d
+  not RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_ROR:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movb RS2rb, %cl
+  ror %cl, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_RORI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  ror IMMEDIATEb, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_RORW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  ror %cl, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_RORIW:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  ror IMMEDIATEb, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_ROL:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  rol %cl, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_ROLW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  rol %cl, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_GREV:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  test $1, RS2rb
+  je .grev_branch1
+  movq RS1, TEMP1
+  movabs $0x5555555555555555, TEMP2
+  and TEMP2, RS1
+  shl $1, RS1
+  movabs $0xAAAAAAAAAAAAAAAA, TEMP2
+  and TEMP2, TEMP1
+  shr $1, TEMP1
+  or TEMP1, RS1
+.grev_branch1:
+  test $2, RS2rb
+  je .grev_branch2
+  movq RS1, TEMP1
+  movabs $0x3333333333333333, TEMP2
+  and TEMP2, RS1
+  shl $2, RS1
+  movabs $0xCCCCCCCCCCCCCCCC, TEMP2
+  and TEMP2, TEMP1
+  shr $2, TEMP1
+  or TEMP1, RS1
+.grev_branch2:
+  test $4, RS2rb
+  je .grev_branch3
+  movq RS1, TEMP1
+  movabs $0x0F0F0F0F0F0F0F0F, TEMP2
+  and TEMP2, RS1
+  shl $4, RS1
+  movabs $0xF0F0F0F0F0F0F0F0, TEMP2
+  and TEMP2, TEMP1
+  shr $4, TEMP1
+  or TEMP1, RS1
+.grev_branch3:
+  test $8, RS2rb
+  je .grev_branch4
+  movq RS1, TEMP1
+  movabs $0x00FF00FF00FF00FF, TEMP2
+  and TEMP2, RS1
+  shl $8, RS1
+  movabs $0xFF00FF00FF00FF00, TEMP2
+  and TEMP2, TEMP1
+  shr $8, TEMP1
+  or TEMP1, RS1
+.grev_branch4:
+  test $16, RS2rb
+  je .grev_branch5
+  movq RS1, TEMP1
+  movabs $0x0000FFFF0000FFFF, TEMP2
+  and TEMP2, RS1
+  shl $16, RS1
+  movabs $0xFFFF0000FFFF0000, TEMP2
+  and TEMP2, TEMP1
+  shr $16, TEMP1
+  or TEMP1, RS1
+.grev_branch5:
+  test $32, RS2rb
+  je .grev_branch6
+  movq RS1, TEMP1
+  movabs $0x00000000FFFFFFFF, TEMP2
+  and TEMP2, RS1
+  shl $32, RS1
+  movabs $0xFFFFFFFF00000000, TEMP2
+  and TEMP2, TEMP1
+  shr $32, TEMP1
+  or TEMP1, RS1
+.grev_branch6:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_GREVI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, RS2r
+  test $1, RS2rb
+  je .grevi_branch1
+  movq RS1, TEMP1
+  movabs $0x5555555555555555, TEMP2
+  and TEMP2, RS1
+  shl $1, RS1
+  movabs $0xAAAAAAAAAAAAAAAA, TEMP2
+  and TEMP2, TEMP1
+  shr $1, TEMP1
+  or TEMP1, RS1
+.grevi_branch1:
+  test $2, RS2rb
+  je .grevi_branch2
+  movq RS1, TEMP1
+  movabs $0x3333333333333333, TEMP2
+  and TEMP2, RS1
+  shl $2, RS1
+  movabs $0xCCCCCCCCCCCCCCCC, TEMP2
+  and TEMP2, TEMP1
+  shr $2, TEMP1
+  or TEMP1, RS1
+.grevi_branch2:
+  test $4, RS2rb
+  je .grevi_branch3
+  movq RS1, TEMP1
+  movabs $0x0F0F0F0F0F0F0F0F, TEMP2
+  and TEMP2, RS1
+  shl $4, RS1
+  movabs $0xF0F0F0F0F0F0F0F0, TEMP2
+  and TEMP2, TEMP1
+  shr $4, TEMP1
+  or TEMP1, RS1
+.grevi_branch3:
+  test $8, RS2rb
+  je .grevi_branch4
+  movq RS1, TEMP1
+  movabs $0x00FF00FF00FF00FF, TEMP2
+  and TEMP2, RS1
+  shl $8, RS1
+  movabs $0xFF00FF00FF00FF00, TEMP2
+  and TEMP2, TEMP1
+  shr $8, TEMP1
+  or TEMP1, RS1
+.grevi_branch4:
+  test $16, RS2rb
+  je .grevi_branch5
+  movq RS1, TEMP1
+  movabs $0x0000FFFF0000FFFF, TEMP2
+  and TEMP2, RS1
+  shl $16, RS1
+  movabs $0xFFFF0000FFFF0000, TEMP2
+  and TEMP2, TEMP1
+  shr $16, TEMP1
+  or TEMP1, RS1
+.grevi_branch5:
+  test $32, RS2rb
+  je .grevi_branch6
+  movq RS1, TEMP1
+  movabs $0x00000000FFFFFFFF, TEMP2
+  and TEMP2, RS1
+  shl $32, RS1
+  movabs $0xFFFFFFFF00000000, TEMP2
+  and TEMP2, TEMP1
+  shr $32, TEMP1
+  or TEMP1, RS1
+.grevi_branch6:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_GREVW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  test $1, RS2rb
+  je .grevw_branch1
+  mov RS1d, TEMP1d
+  and $0x55555555, RS1d
+  shl $1, RS1d
+  and $0xAAAAAAAA, TEMP1d
+  shr $1, TEMP1d
+  or TEMP1d, RS1d
+.grevw_branch1:
+  test $2, RS2rb
+  je .grevw_branch2
+  mov RS1d, TEMP1d
+  and $0x33333333, RS1d
+  shl $2, RS1d
+  and $0xCCCCCCCC, TEMP1d
+  shr $2, TEMP1d
+  or TEMP1d, RS1d
+.grevw_branch2:
+  test $4, RS2rb
+  je .grevw_branch3
+  mov RS1d, TEMP1d
+  and $0x0F0F0F0F, RS1d
+  shl $4, RS1d
+  and $0xF0F0F0F0, TEMP1d
+  shr $4, TEMP1d
+  or TEMP1d, RS1d
+.grevw_branch3:
+  test $8, RS2rb
+  je .grevw_branch4
+  mov RS1d, TEMP1d
+  and $0x00FF00FF, RS1d
+  shl $8, RS1d
+  and $0xFF00FF00, TEMP1d
+  shr $8, TEMP1d
+  or TEMP1d, RS1d
+.grevw_branch4:
+  test $16, RS2rb
+  je .grevw_branch5
+  mov RS1d, TEMP1d
+  and $0x0000FFFF, RS1d
+  shl $16, RS1d
+  and $0xFFFF0000, TEMP1d
+  shr $16, TEMP1d
+  or TEMP1d, RS1d
+.grevw_branch5:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_GREVIW:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, RS2r
+  test $1, RS2rb
+  je .greviw_branch1
+  mov RS1d, TEMP1d
+  and $0x55555555, RS1d
+  shl $1, RS1d
+  and $0xAAAAAAAA, TEMP1d
+  shr $1, TEMP1d
+  or TEMP1d, RS1d
+.greviw_branch1:
+  test $2, RS2rb
+  je .greviw_branch2
+  mov RS1d, TEMP1d
+  and $0x33333333, RS1d
+  shl $2, RS1d
+  and $0xCCCCCCCC, TEMP1d
+  shr $2, TEMP1d
+  or TEMP1d, RS1d
+.greviw_branch2:
+  test $4, RS2rb
+  je .greviw_branch3
+  mov RS1d, TEMP1d
+  and $0x0F0F0F0F, RS1d
+  shl $4, RS1d
+  and $0xF0F0F0F0, TEMP1d
+  shr $4, TEMP1d
+  or TEMP1d, RS1d
+.greviw_branch3:
+  test $8, RS2rb
+  je .greviw_branch4
+  mov RS1d, TEMP1d
+  and $0x00FF00FF, RS1d
+  shl $8, RS1d
+  and $0xFF00FF00, TEMP1d
+  shr $8, TEMP1d
+  or TEMP1d, RS1d
+.greviw_branch4:
+  test $16, RS2rb
+  je .greviw_branch5
+  mov RS1d, TEMP1d
+  and $0x0000FFFF, RS1d
+  shl $16, RS1d
+  and $0xFFFF0000, TEMP1d
+  shr $16, TEMP1d
+  or TEMP1d, RS1d
+.greviw_branch5:
+  WRITE_RD(RS1)
+  NEXT_INST
+.shuffle64_stage:
+  mov %rsi, %r9
+  mov %rdi, %r8
+  or %rdx, %r9
+  shl %cl, %r8
+  mov %r9, %rax
+  and %r8, %rsi
+  not %rax
+  and %rdi, %rax
+  shr %cl, %rdi
+  mov %rax, %r9
+  mov %rdi, %rax
+  and %rdx, %rax
+  or %rax, %rsi
+  mov %rsi, %rax
+  or %r9, %rax
+  retq
+.shfl64:
+  test $0x10, %sil
+  mov %rsi, %r10
+  je .shfl64_branch1
+  mov $0x10, %ecx
+  mov $0xffff0000, %edx
+  movabs $0xffff00000000, %rsi
+  callq .shuffle64_stage
+  mov %rax, %rdi
+.shfl64_branch1:
+  test $0x8, %r10b
+  je .shfl64_branch2
+  mov $0x8, %ecx
+  movabs $0xff000000ff00, %rdx
+  movabs $0xff000000ff0000, %rsi
+  callq .shuffle64_stage
+  mov %rax, %rdi
+.shfl64_branch2:
+  test $0x4, %r10b
+  je .shfl64_branch3
+  mov $0x4, %ecx
+  movabs $0xf000f000f000f0, %rdx
+  movabs $0xf000f000f000f00, %rsi
+  callq .shuffle64_stage
+  mov %rax, %rdi
+.shfl64_branch3:
+  test $0x2, %r10b
+  je .shfl64_branch4
+  mov $0x2, %ecx
+  movabs $0xc0c0c0c0c0c0c0c, %rdx
+  movabs $0x3030303030303030, %rsi
+  callq .shuffle64_stage
+  mov %rax, %rdi
+.shfl64_branch4:
+  and $0x1, %r10b
+  je .shfl64_branch5
+  mov $0x1, %ecx
+  movabs $0x2222222222222222, %rdx
+  movabs $0x4444444444444444, %rsi
+  jmp .shuffle64_stage
+.shfl64_branch5:
+  mov %rdi, %rax
+  retq
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SHFL:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  PREPCALL
+  movq RS1, %rdi
+  movq RS2r, %rsi
+  callq .shfl64
+  movq %rax, TEMP2
+  POSTCALL
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.unshfl64:
+  test $0x1, %sil
+  mov %rsi, %r10
+  je .unshfl64_branch1
+  mov $0x1, %ecx
+  movabs $0x2222222222222222, %rdx
+  movabs $0x4444444444444444, %rsi
+  callq .shuffle64_stage
+  mov %rax, %rdi
+.unshfl64_branch1:
+  test $0x2, %r10b
+  je .unshfl64_branch2
+  mov $0x2, %ecx
+  movabs $0xc0c0c0c0c0c0c0c, %rdx
+  movabs $0x3030303030303030, %rsi
+  callq .shuffle64_stage
+  mov %rax, %rdi
+.unshfl64_branch2:
+  test $0x4, %r10b
+  je .unshfl64_branch3
+  mov $0x4, %ecx
+  movabs $0xf000f000f000f0, %rdx
+  movabs $0xf000f000f000f00, %rsi
+  callq .shuffle64_stage
+  mov %rax, %rdi
+.unshfl64_branch3:
+  test $0x8, %r10b
+  je .unshfl64_branch4
+  mov $0x8, %ecx
+  movabs $0xff000000ff00, %rdx
+  movabs $0xff000000ff0000, %rsi
+  callq  .shuffle64_stage
+  mov %rax, %rdi
+.unshfl64_branch4:
+  and $0x10, %r10b
+  je .unshfl64_branch5
+  mov $0x10, %ecx
+  mov $0xffff0000, %edx
+  movabs $0xffff00000000, %rsi
+  jmp .shuffle64_stage
+.unshfl64_branch5:
+  mov %rdi, %rax
+  retq
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_UNSHFL:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  PREPCALL
+  movq RS1, %rdi
+  movq RS2r, %rsi
+  callq .unshfl64
+  movq %rax, TEMP2
+  POSTCALL
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SHFLI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, RS2r
+  PREPCALL
+  movq RS1, %rdi
+  movq RS2r, %rsi
+  callq .shfl64
+  movq %rax, TEMP2
+  POSTCALL
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_UNSHFLI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, RS2r
+  PREPCALL
+  movq RS1, %rdi
+  movq RS2r, %rsi
+  callq .unshfl64
+  movq %rax, TEMP2
+  POSTCALL
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.shuffle32_stage:
+  mov %esi, %r9d
+  mov %edi, %r8d
+  or %edx, %r9d
+  shl %cl, %r8d
+  mov %r9d, %eax
+  and %r8d, %esi
+  not %eax
+  and %edi, %eax
+  shr %cl, %edi
+  mov %eax, %r9d
+  mov %edi, %eax
+  and %edx, %eax
+  or %eax, %esi
+  mov %esi, %eax
+  or %r9d, %eax
+  retq
+.shfl32:
+  test $0x8, %sil
+  mov %esi, %r10d
+  je .shfl32_branch1
+  mov $0x8, %ecx
+  mov $0xff00, %edx
+  mov $0xff0000, %esi
+  callq .shuffle32_stage
+  mov %eax, %edi
+.shfl32_branch1:
+  test $0x4, %r10b
+  je .shfl32_branch2
+  mov $0x4, %ecx
+  mov $0xf000f0, %edx
+  mov $0xf000f00, %esi
+  callq .shuffle32_stage
+  mov %eax, %edi
+.shfl32_branch2:
+  test $0x2, %r10b
+  je .shfl32_branch3
+  mov $0x2, %ecx
+  mov $0xc0c0c0c, %edx
+  mov $0x30303030, %esi
+  callq .shuffle32_stage
+  mov %eax, %edi
+.shfl32_branch3:
+  and $0x1, %r10b
+  je .shfl32_branch4
+  mov $0x1, %ecx
+  mov $0x22222222, %edx
+  mov $0x44444444, %esi
+  jmp .shuffle32_stage
+.shfl32_branch4:
+  mov %edi, %eax
+  retq
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SHFLW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  PREPCALL
+  mov RS1d, %edi
+  mov RS2rd, %esi
+  callq .shfl32
+  mov %eax, TEMP2d
+  POSTCALL
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.unshfl32:
+  test $0x1, %sil
+  mov %esi, %r10d
+  je .unshfl32_branch1
+  mov $0x1, %ecx
+  mov $0x22222222, %edx
+  mov $0x44444444, %esi
+  callq .shuffle32_stage
+  mov %eax, %edi
+.unshfl32_branch1:
+  test $0x2, %r10b
+  je .unshfl32_branch2
+  mov $0x2, %ecx
+  mov $0xc0c0c0c, %edx
+  mov $0x30303030, %esi
+  callq .shuffle32_stage
+  mov %eax, %edi
+.unshfl32_branch2:
+  test $0x4, %r10b
+  je .unshfl32_branch3
+  mov $0x4, %ecx
+  mov $0xf000f0, %edx
+  mov $0xf000f00, %esi
+  callq .shuffle32_stage
+  mov %eax, %edi
+.unshfl32_branch3:
+  and $0x8, %r10b
+  je .unshfl32_branch4
+  mov $0x8, %ecx
+  mov $0xff00, %edx
+  mov $0xff0000, %esi
+  jmp .shuffle32_stage
+.unshfl32_branch4:
+  mov %edi, %eax
+  retq
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_UNSHFLW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  PREPCALL
+  mov RS1d, %edi
+  mov RS2rd, %esi
+  callq .unshfl32
+  mov %eax, TEMP2d
+  POSTCALL
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_GORC:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movq RS1, TEMP1
+  test $1, RS2rb
+  je .gorc_branch1
+  movq TEMP1, TEMP2
+  movq $0x5555555555555555, %rcx
+  andq %rcx, TEMP2
+  shl $1, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xAAAAAAAAAAAAAAAA, %rcx
+  andq %rcx, TEMP3
+  shr $1, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorc_branch1:
+  test $2, RS2rb
+  je .gorc_branch2
+  movq TEMP1, TEMP2
+  movq $0x3333333333333333, %rcx
+  andq %rcx, TEMP2
+  shl $2, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xCCCCCCCCCCCCCCCC, %rcx
+  andq %rcx, TEMP3
+  shr $2, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorc_branch2:
+  test $4, RS2rb
+  je .gorc_branch3
+  movq TEMP1, TEMP2
+  movq $0x0F0F0F0F0F0F0F0F, %rcx
+  andq %rcx, TEMP2
+  shl $4, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xF0F0F0F0F0F0F0F0, %rcx
+  andq %rcx, TEMP3
+  shr $4, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorc_branch3:
+  test $8, RS2rb
+  je .gorc_branch4
+  movq TEMP1, TEMP2
+  movq $0x00FF00FF00FF00FF, %rcx
+  andq %rcx, TEMP2
+  shl $8, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xFF00FF00FF00FF00, %rcx
+  andq %rcx, TEMP3
+  shr $8, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorc_branch4:
+  test $16, RS2rb
+  je .gorc_branch5
+  movq TEMP1, TEMP2
+  movq $0x0000FFFF0000FFFF, %rcx
+  andq %rcx, TEMP2
+  shl $16, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xFFFF0000FFFF0000, %rcx
+  andq %rcx, TEMP3
+  shr $16, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorc_branch5:
+  test $32, RS2rb
+  je .gorc_branch6
+  movq TEMP1, TEMP2
+  movq $0x00000000FFFFFFFF, %rcx
+  andq %rcx, TEMP2
+  shl $32, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xFFFFFFFF00000000, %rcx
+  andq %rcx, TEMP3
+  shr $32, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorc_branch6:
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_GORCI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, RS2r
+  movq RS1, TEMP1
+  test $1, RS2rb
+  je .gorci_branch1
+  movq TEMP1, TEMP2
+  movq $0x5555555555555555, %rcx
+  andq %rcx, TEMP2
+  shl $1, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xAAAAAAAAAAAAAAAA, %rcx
+  andq %rcx, TEMP3
+  shr $1, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorci_branch1:
+  test $2, RS2rb
+  je .gorci_branch2
+  movq TEMP1, TEMP2
+  movq $0x3333333333333333, %rcx
+  andq %rcx, TEMP2
+  shl $2, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xCCCCCCCCCCCCCCCC, %rcx
+  andq %rcx, TEMP3
+  shr $2, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorci_branch2:
+  test $4, RS2rb
+  je .gorci_branch3
+  movq TEMP1, TEMP2
+  movq $0x0F0F0F0F0F0F0F0F, %rcx
+  andq %rcx, TEMP2
+  shl $4, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xF0F0F0F0F0F0F0F0, %rcx
+  andq %rcx, TEMP3
+  shr $4, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorci_branch3:
+  test $8, RS2rb
+  je .gorci_branch4
+  movq TEMP1, TEMP2
+  movq $0x00FF00FF00FF00FF, %rcx
+  andq %rcx, TEMP2
+  shl $8, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xFF00FF00FF00FF00, %rcx
+  andq %rcx, TEMP3
+  shr $8, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorci_branch4:
+  test $16, RS2rb
+  je .gorci_branch5
+  movq TEMP1, TEMP2
+  movq $0x0000FFFF0000FFFF, %rcx
+  andq %rcx, TEMP2
+  shl $16, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xFFFF0000FFFF0000, %rcx
+  andq %rcx, TEMP3
+  shr $16, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorci_branch5:
+  test $32, RS2rb
+  je .gorci_branch6
+  movq TEMP1, TEMP2
+  movq $0x00000000FFFFFFFF, %rcx
+  andq %rcx, TEMP2
+  shl $32, TEMP2
+  movq TEMP1, TEMP3
+  movq $0xFFFFFFFF00000000, %rcx
+  andq %rcx, TEMP3
+  shr $32, TEMP3
+  or TEMP2, TEMP1
+  or TEMP3, TEMP1
+.gorci_branch6:
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_GORCW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  mov RS1d, TEMP1d
+  test $1, RS2rb
+  je .gorcw_branch1
+  mov TEMP1d, TEMP2d
+  and $0x55555555, TEMP2d
+  shl $1, TEMP2d
+  mov TEMP1d, TEMP3d
+  and $0xAAAAAAAA, TEMP3d
+  shr $1, TEMP3d
+  or TEMP2d, TEMP1d
+  or TEMP3d, TEMP1d
+.gorcw_branch1:
+  test $2, RS2rb
+  je .gorcw_branch2
+  mov TEMP1d, TEMP2d
+  and $0x33333333, TEMP2d
+  shl $2, TEMP2d
+  mov TEMP1d, TEMP3d
+  and $0xCCCCCCCC, TEMP3d
+  shr $2, TEMP3d
+  or TEMP2d, TEMP1d
+  or TEMP3d, TEMP1d
+.gorcw_branch2:
+  test $4, RS2rb
+  je .gorcw_branch3
+  mov TEMP1d, TEMP2d
+  and $0x0F0F0F0F, TEMP2d
+  shl $4, TEMP2d
+  mov TEMP1d, TEMP3d
+  and $0xF0F0F0F0, TEMP3d
+  shr $4, TEMP3d
+  or TEMP2d, TEMP1d
+  or TEMP3d, TEMP1d
+.gorcw_branch3:
+  test $8, RS2rb
+  je .gorcw_branch4
+  mov TEMP1d, TEMP2d
+  and $0x00FF00FF, TEMP2d
+  shl $8, TEMP2d
+  mov TEMP1d, TEMP3d
+  and $0xFF00FF00, TEMP3d
+  shr $8, TEMP3d
+  or TEMP2d, TEMP1d
+  or TEMP3d, TEMP1d
+.gorcw_branch4:
+  test $16, RS2rb
+  je .gorcw_branch5
+  mov TEMP1d, TEMP2d
+  and $0x0000FFFF, TEMP2d
+  shl $16, TEMP2d
+  mov TEMP1d, TEMP3d
+  and $0xFFFF0000, TEMP3d
+  shr $16, TEMP3d
+  or TEMP2d, TEMP1d
+  or TEMP3d, TEMP1d
+.gorcw_branch5:
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_GORCIW:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, RS2r
+  mov RS1d, TEMP1d
+  test $1, RS2rb
+  je .gorciw_branch1
+  mov TEMP1d, TEMP2d
+  and $0x55555555, TEMP2d
+  shl $1, TEMP2d
+  mov TEMP1d, TEMP3d
+  and $0xAAAAAAAA, TEMP3d
+  shr $1, TEMP3d
+  or TEMP2d, TEMP1d
+  or TEMP3d, TEMP1d
+.gorciw_branch1:
+  test $2, RS2rb
+  je .gorciw_branch2
+  mov TEMP1d, TEMP2d
+  and $0x33333333, TEMP2d
+  shl $2, TEMP2d
+  mov TEMP1d, TEMP3d
+  and $0xCCCCCCCC, TEMP3d
+  shr $2, TEMP3d
+  or TEMP2d, TEMP1d
+  or TEMP3d, TEMP1d
+.gorciw_branch2:
+  test $4, RS2rb
+  je .gorciw_branch3
+  mov TEMP1d, TEMP2d
+  and $0x0F0F0F0F, TEMP2d
+  shl $4, TEMP2d
+  mov TEMP1d, TEMP3d
+  and $0xF0F0F0F0, TEMP3d
+  shr $4, TEMP3d
+  or TEMP2d, TEMP1d
+  or TEMP3d, TEMP1d
+.gorciw_branch3:
+  test $8, RS2rb
+  je .gorciw_branch4
+  mov TEMP1d, TEMP2d
+  and $0x00FF00FF, TEMP2d
+  shl $8, TEMP2d
+  mov TEMP1d, TEMP3d
+  and $0xFF00FF00, TEMP3d
+  shr $8, TEMP3d
+  or TEMP2d, TEMP1d
+  or TEMP3d, TEMP1d
+.gorciw_branch4:
+  test $16, RS2rb
+  je .gorciw_branch5
+  mov TEMP1d, TEMP2d
+  and $0x0000FFFF, TEMP2d
+  shl $16, TEMP2d
+  mov TEMP1d, TEMP3d
+  and $0xFFFF0000, TEMP3d
+  shr $16, TEMP3d
+  or TEMP2d, TEMP1d
+  or TEMP3d, TEMP1d
+.gorciw_branch5:
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_BFP:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  mov RS2r, TEMP1
+  mov RS2r, TEMP2
+  shr $0x3e, TEMP1
+  shr $0x30, TEMP2
+  cmp $0x2, TEMP1
+  je .bfp_branch1
+  mov RS2r, TEMP2
+  shr $0x20, TEMP2
+.bfp_branch1:
+  mov TEMP2, %rcx
+  shr $0x8, %rcx
+  and $0x1f, %ecx
+  jne .bfp_branch2
+  mov $0x20, %ecx
+.bfp_branch2:
+  and $0x3f, TEMP2d
+  or $0xffffffffffffffff, TEMP3
+  shl %cl, TEMP3
+  mov TEMP2b, %cl
+  shl %cl, RS2r
+  not TEMP3
+  mov RS2r, TEMP1
+  shl %cl, TEMP3
+  xor RS1, TEMP1
+  and TEMP1, TEMP3
+  mov TEMP3, TEMP1
+  xor TEMP1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_BFPW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  mov RS2rd, %ecx
+  mov RS2rd, TEMP2d
+  shr $0x18, %ecx
+  shr $0x10, TEMP2d
+  and $0xf, %ecx
+  jne .bfpw_branch1
+  mov $0x10, %ecx
+.bfpw_branch1:
+  and $0x1f, TEMP2d
+  or $0xffffffff, TEMP1d
+  shl %cl, TEMP1d
+  mov TEMP2b, %cl
+  shl %cl, RS2rd
+  not TEMP1d
+  mov RS2rd, TEMP2d
+  shl %cl, TEMP1d
+  xor RS1d, TEMP2d
+  and TEMP2d, TEMP1d
+  mov TEMP1d, TEMP2d
+  xor TEMP2d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_BEXT:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  xor %ecx, %ecx
+  xor TEMP1d, TEMP1d
+  xor TEMP2d, TEMP2d
+.bexp_branch1:
+  bt TEMP1, RS2r
+  jae .bexp_branch3
+  bt TEMP1, RS1
+  jae .bexp_branch2
+  mov $1, TEMP3
+  shl %cl, TEMP3
+  or TEMP3, TEMP2
+.bexp_branch2:
+  inc %ecx
+.bexp_branch3:
+  inc TEMP1d
+  cmp $0x40, TEMP1d
+  jne .bexp_branch1
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_BEXTW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  xor %ecx, %ecx
+  xor TEMP1d, TEMP1d
+  xor TEMP2d, TEMP2d
+.bextw_branch1:
+  bt TEMP1d, RS2rd
+  jae .bextw_branch3
+  bt TEMP1d, RS1d
+  jae .bextw_branch2
+  mov $1, TEMP3d
+  shl %cl, TEMP3d
+  or TEMP3d, TEMP2d
+.bextw_branch2:
+  inc %ecx
+.bextw_branch3:
+  inc TEMP1d
+  cmp $0x20, TEMP1d
+  jne .bextw_branch1
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_BDEP:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  xor TEMP1d, TEMP1d
+  xor %ecx, %ecx
+  xor TEMP2d, TEMP2d
+.bdep_branch1:
+  bt %rcx, RS2r
+  jae .bdep_branch3
+  bt TEMP1, RS1
+  jae .bdep_branch2
+  mov $1, TEMP3
+  shl %cl, TEMP3
+  or TEMP3, TEMP2
+.bdep_branch2:
+  inc TEMP1d
+.bdep_branch3:
+  inc %ecx
+  cmp $0x40, %ecx
+  jne .bdep_branch1
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_BDEPW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  xor TEMP1d, TEMP1d
+  xor %ecx, %ecx
+  xor TEMP2d, TEMP2d
+.bdepw_branch1:
+  bt %ecx, RS2rd
+  jae .bdepw_branch3
+  bt TEMP1d, RS1d
+  jae .bdepw_branch2
+  mov $1, TEMP3d
+  shl %cl, TEMP3d
+  or TEMP3d, TEMP2d
+.bdepw_branch2:
+  inc TEMP1d
+.bdepw_branch3:
+  inc %ecx
+  cmp $0x20, %ecx
+  jne .bdepw_branch1
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CLMUL:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  xor TEMP3d, TEMP3d
+  xor TEMP2, TEMP2
+.clmul_branch1:
+  bt TEMP3, RS2r
+  jae .clmul_branch2
+  mov RS1, TEMP1
+  movb TEMP3b, %cl
+  shl %cl, TEMP1
+  xor TEMP1, TEMP2
+.clmul_branch2:
+  inc TEMP3d
+  cmp $0x40, TEMP3d
+  jne .clmul_branch1
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CLMULW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  xor TEMP3d, TEMP3d
+  xor TEMP2d, TEMP2d
+.clmulw_branch1:
+  bt TEMP3d, RS2rd
+  jae .clmulw_branch2
+  mov RS1d, TEMP1d
+  movb TEMP3b, %cl
+  shl %cl, TEMP1d
+  xor TEMP1d, TEMP2d
+.clmulw_branch2:
+  inc TEMP3d
+  cmp $0x20, TEMP3d
+  jne .clmulw_branch1
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CLMULH:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movq $1, TEMP3
+  xor TEMP2, TEMP2
+.clmulh_branch1:
+  bt TEMP3, RS2r
+  jae .clmulh_branch2
+  mov RS1, TEMP1
+  movb TEMP3b, %cl
+  neg %cl
+  add $64, %cl
+  shr %cl, TEMP1
+  xor TEMP1, TEMP2
+.clmulh_branch2:
+  inc TEMP3d
+  cmp $0x40, TEMP3d
+  jne .clmulh_branch1
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CLMULHW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movq $1, TEMP3
+  xor TEMP2d, TEMP2d
+.clmulhw_branch1:
+  bt TEMP3d, RS2rd
+  jae .clmulhw_branch2
+  mov RS1d, TEMP1d
+  movb TEMP3b, %cl
+  neg %cl
+  add $32, %cl
+  shr %cl, TEMP1d
+  xor TEMP1d, TEMP2d
+.clmulhw_branch2:
+  inc TEMP3d
+  cmp $0x20, TEMP3d
+  jne .clmulhw_branch1
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CLMULR:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  xor TEMP3, TEMP3
+  xor TEMP2, TEMP2
+.clmulr_branch1:
+  bt TEMP3, RS2r
+  jae .clmulr_branch2
+  mov RS1, TEMP1
+  movb TEMP3b, %cl
+  neg %cl
+  add $63, %cl
+  shr %cl, TEMP1
+  xor TEMP1, TEMP2
+.clmulr_branch2:
+  inc TEMP3d
+  cmp $0x40, TEMP3d
+  jne .clmulr_branch1
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CLMULRW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  xor TEMP3d, TEMP3d
+  xor TEMP2d, TEMP2d
+.clmulrw_branch1:
+  bt TEMP3d, RS2rd
+  jae .clmulrw_branch2
+  mov RS1d, TEMP1d
+  movb TEMP3b, %cl
+  neg %cl
+  add $31, %cl
+  shr %cl, TEMP1d
+  xor TEMP1d, TEMP2d
+.clmulrw_branch2:
+  inc TEMP3d
+  cmp $0x20, TEMP3d
+  jne .clmulrw_branch1
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32B:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32b_branch1:
+  cmp $8, RS2rd
+  jge .crc32b_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0xedb88320, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32b_branch1
+.crc32b_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32H:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32h_branch1:
+  cmp $16, RS2rd
+  jge .crc32h_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0xedb88320, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32h_branch1
+.crc32h_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32W:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32w_branch1:
+  cmp $32, RS2rd
+  jge .crc32w_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0xedb88320, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32w_branch1
+.crc32w_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32D:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32d_branch1:
+  cmp $64, RS2rd
+  jge .crc32d_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0xedb88320, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32d_branch1
+.crc32d_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32CB:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32cb_branch1:
+  cmp $8, RS2rd
+  jge .crc32cb_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0x82f63b78, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32cb_branch1
+.crc32cb_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32CH:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32ch_branch1:
+  cmp $16, RS2rd
+  jge .crc32ch_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0x82f63b78, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32ch_branch1
+.crc32ch_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32CW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32cw_branch1:
+  cmp $32, RS2rd
+  jge .crc32cw_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0x82f63b78, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32cw_branch1
+.crc32cw_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32CD:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32cd_branch1:
+  cmp $64, RS2rd
+  jge .crc32cd_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0x82f63b78, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32cd_branch1
+.crc32cd_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_BMATOR:
+  jmp .exit_unimplemented_instruction
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_BMATXOR:
+  jmp .exit_unimplemented_instruction
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_BMATFLIP:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  PREPCALL
+  movq RS1, %rdi
+  movq $31, %rsi
+  callq .shfl64
+  movq %rax, %rdi
+  movq $31, %rsi
+  callq .shfl64
+  movq %rax, %rdi
+  movq $31, %rsi
+  callq .shfl64
+  movq %rax, TEMP2
+  POSTCALL
+  WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CMIX:
+  DECODE_R4
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movq REGISTER_ADDRESS(RS3), RS3
+  xor RS3, RS1
+  and RS2r, RS1
+  xor RS3, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CMOV:
+  DECODE_R4
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movq REGISTER_ADDRESS(RS3), RS3
+  test RS2r, RS2r
+  cmove RS3, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_FSL:
+  DECODE_R4
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movq REGISTER_ADDRESS(RS3), RS3
+  and $0x7f, RS2rd
+  mov RS1, TEMP1
+  cmp $0x3f, RS2rd
+  jle .fsl_branch1
+  mov RS3, TEMP1
+  sub $0x40, RS2rd
+  mov RS1, RS3
+.fsl_branch1:
+  test RS2rd, RS2rd
+  je .fsl_branch2
+  mov $0x40, %ecx
+  sub RS2rd, %ecx
+  shr %cl, RS3
+  mov RS2rb, %cl
+  shl %cl, TEMP1
+  or RS3, TEMP1
+.fsl_branch2:
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_FSLW:
+  DECODE_R4
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movq REGISTER_ADDRESS(RS3), RS3
+  and $0x3f, RS2rd
+  mov RS1d, TEMP1d
+  cmp $0x1f, RS2rd
+  jle .fslw_branch1
+  mov RS3d, TEMP1d
+  sub $0x20, RS2rd
+  mov RS1d, RS3d
+.fslw_branch1:
+  test RS2rd, RS2rd
+  je .fslw_branch2
+  mov $0x20, %ecx
+  sub RS2rd, %ecx
+  shr %cl, RS3d
+  mov RS2rb, %cl
+  shl %cl, TEMP1d
+  or RS3d, TEMP1d
+.fslw_branch2:
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_FSR:
+  DECODE_R4
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movq REGISTER_ADDRESS(RS3), RS3
+  and $0x7f, RS2rd
+  mov RS1, TEMP1
+  cmp $0x3f, RS2rd
+  jle .fsr_branch1
+  mov RS3, TEMP1
+  sub $0x40, RS2rd
+  mov RS1, RS3
+.fsr_branch1:
+  test RS2rd, RS2rd
+  je .fsr_branch2
+  mov $0x40, %ecx
+  sub RS2rd, %ecx
+  shl %cl, RS3
+  mov RS2rb, %cl
+  shr %cl, TEMP1
+  or RS3, TEMP1
+.fsr_branch2:
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_FSRW:
+  DECODE_R4
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movq REGISTER_ADDRESS(RS3), RS3
+  and $0x3f, RS2rd
+  mov RS1d, TEMP1d
+  cmp $0x1f, RS2rd
+  jle .fslrw_branch1
+  mov RS3d, TEMP1d
+  sub $0x20, RS2rd
+  mov RS1d, RS3d
+.fslrw_branch1:
+  test RS2rd, RS2rd
+  je .fslrw_branch2
+  mov $0x20, %ecx
+  sub RS2rd, %ecx
+  shl %cl, RS3d
+  mov RS2rb, %cl
+  shr %cl, TEMP1d
+  or RS3d, TEMP1d
+.fslrw_branch2:
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_FSRI:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq IMMEDIATE, RS2r
+  and $0x3f, RS2r
+  movq IMMEDIATE, RS3
+  shr $7, RS3
+  movq REGISTER_ADDRESS(RS3), RS3
+  and $0x7f, RS2rd
+  mov RS1, TEMP1
+  cmp $0x3f, RS2rd
+  jle .fsri_branch1
+  mov RS3, TEMP1
+  sub $0x40, RS2rd
+  mov RS1, RS3
+.fsri_branch1:
+  test RS2rd, RS2rd
+  je .fsri_branch2
+  mov $0x40, %ecx
+  sub RS2rd, %ecx
+  shl %cl, RS3
+  mov RS2rb, %cl
+  shr %cl, TEMP1
+  or RS3, TEMP1
+.fsri_branch2:
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_FSRIW:
+  DECODE_R4
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS3), RS3
+  and $0x3f, RS2rd
+  mov RS1d, TEMP1d
+  cmp $0x1f, RS2rd
+  jle .fslriw_branch1
+  mov RS3d, TEMP1d
+  sub $0x20, RS2rd
+  mov RS1d, RS3d
+.fslriw_branch1:
+  test RS2rd, RS2rd
+  je .fslriw_branch2
+  mov $0x20, %ecx
+  sub RS2rd, %ecx
+  shl %cl, RS3d
+  mov RS2rb, %cl
+  shr %cl, TEMP1d
+  or RS3d, TEMP1d
+.fslriw_branch2:
+  WRITE_RD(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SH1ADD:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  shl $1, RS1
+  add RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SH2ADD:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  shl $2, RS1
+  add RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SH3ADD:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  shl $3, RS1
+  add RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SH1ADDUW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movabs $0x1ffffffff, TEMP1
+  and TEMP1, RS1
+  shl $1, RS1
+  add RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SH2ADDUW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movabs $0x1ffffffff, TEMP1
+  and TEMP1, RS1
+  shl $2, RS1
+  add RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SH3ADDUW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  movabs $0x1ffffffff, TEMP1
+  and TEMP1, RS1
+  shl $3, RS1
+  add RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_ADDIWU:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS1
+  addq IMMEDIATE, RS1
+  mov RS1d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SLLIUW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), %rcx
+  mov RS1d, RS1d
+  and $63, %ecx
+  shl %cl, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_ADDWU:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  addq REGISTER_ADDRESS(RS2r), RS1
+  mov RS1d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SUBWU:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  subq REGISTER_ADDRESS(RS2r), RS1
+  mov RS1d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_ADDUW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  mov RS2rd, RS2rd
+  addq RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_SUBUW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  mov RS2rd, RS2rd
+  subq RS2r, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
 .exit_out_of_bound:
   mov $CKB_VM_ASM_RET_OUT_OF_BOUND, ARG_RETd
   jmp .exit
@@ -1319,8 +3383,13 @@ ckb_vm_x64_execute:
 .exit_max_cycles_exceeded:
   mov $CKB_VM_ASM_RET_MAX_CYCLES_EXCEEDED, ARG_RETd
   jmp .exit
+.p2align 3
 .exit_invalid_permission:
   mov $CKB_VM_ASM_RET_INVALID_PERMISSION, ARG_RETd
+  jmp .exit
+.p2align 3
+.exit_unimplemented_instruction:
+  mov $CKB_VM_ASM_RET_UNIMPLEMENTED_INSTRUCTION, ARG_RETd
   jmp .exit
 .p2align 3
 .exit_trace:
