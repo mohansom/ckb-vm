@@ -1,4 +1,4 @@
-use super::instructions::{i, m, rvc, Instruction, InstructionFactory, Register};
+use super::instructions::{b, i, m, rvc, Instruction, InstructionFactory, Register};
 use super::memory::Memory;
 use super::Error;
 
@@ -86,5 +86,6 @@ pub fn build_imac_decoder<R: Register>(version: u32) -> Decoder {
     decoder.add_instruction_factory(rvc::factory::<R>);
     decoder.add_instruction_factory(i::factory::<R>);
     decoder.add_instruction_factory(m::factory::<R>);
+    decoder.add_instruction_factory(b::factory::<R>);
     decoder
 }

@@ -260,6 +260,31 @@ impl Register for Value {
         )
     }
 
+    fn clz(&self) -> Value {
+        // TODO
+        Value::from_u32(0)
+    }
+
+    fn ctz(&self) -> Value {
+        // TODO
+        Value::from_u32(0)
+    }
+
+    fn pcnt(&self) -> Value {
+        // TODO
+        Value::from_u32(0)
+    }
+
+    fn rotate_left(&self, _rhs: &Value) -> Value {
+        // TODO
+        Value::from_u32(0)
+    }
+
+    fn rotate_right(&self, _rhs: &Value) -> Value {
+        // TODO
+        Value::from_u32(0)
+    }
+
     fn signed_shl(&self, rhs: &Value) -> Value {
         // Signed shl and unsigned shl are the same thing
         self.clone().shl(rhs.clone())
