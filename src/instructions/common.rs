@@ -383,3 +383,326 @@ pub fn jal<Mac: Machine>(
     update_register(machine, rd, link);
     Some(machine.pc().overflowing_add(&Mac::REG::from_i32(imm)))
 }
+
+// ==============================
+// #  B-extension instructions  #
+// ==============================
+pub fn slo32(rs1: u32, rs2: u32) -> u32 {
+    let shamt = rs2 & 31;
+    !(!rs1 << shamt)
+}
+
+pub fn slo<Mac: Machine>(rs1: Mac::REG, rs2: Mac::REG) -> Mac::REG {
+    let shamt = rs2 & (Mac::REG::from_u8(Mac::REG::BITS - 1));
+    !(!rs1 << shamt)
+}
+
+pub fn sro32(rs1: u32, rs2: u32) -> u32 {
+    let shamt = rs2 & 31;
+    !(!rs1 >> shamt)
+}
+
+pub fn sro<Mac: Machine>(rs1: Mac::REG, rs2: Mac::REG) -> Mac::REG {
+    let shamt = rs2 & (Mac::REG::from_u8(Mac::REG::BITS - 1));
+    !(!rs1 >> shamt)
+}
+
+pub fn grev32(rs1: u32, rs2: u32) -> u32 {
+    let mut x = rs1;
+    let shamt = rs2 & 31;
+    if (shamt & 1) != 0 {
+        x = ((x & 0x5555_5555) << 1) | ((x & 0xAAAA_AAAA) >> 1);
+    }
+    if (shamt & 2) != 0 {
+        x = ((x & 0x3333_3333) << 2) | ((x & 0xCCCC_CCCC) >> 2);
+    }
+    if (shamt & 4) != 0 {
+        x = ((x & 0x0F0F_0F0F) << 4) | ((x & 0xF0F0_F0F0) >> 4);
+    }
+    if (shamt & 8) != 0 {
+        x = ((x & 0x00FF_00FF) << 8) | ((x & 0xFF00_FF00) >> 8);
+    }
+    if (shamt & 16) != 0 {
+        x = ((x & 0x0000_FFFF) << 16) | ((x & 0xFFFF_0000) >> 16);
+    }
+    x
+}
+
+pub fn grev64(rs1: u64, rs2: u64) -> u64 {
+    let mut x = rs1;
+    let shamt = rs2 & 63;
+    if (shamt & 1) != 0 {
+        x = ((x & 0x5555_5555_5555_5555_u64) << 1) | ((x & 0xAAAA_AAAA_AAAA_AAAA_u64) >> 1);
+    }
+    if (shamt & 2) != 0 {
+        x = ((x & 0x3333_3333_3333_3333_u64) << 2) | ((x & 0xCCCC_CCCC_CCCC_CCCC_u64) >> 2);
+    }
+    if (shamt & 4) != 0 {
+        x = ((x & 0x0F0F_0F0F_0F0F_0F0F_u64) << 4) | ((x & 0xF0F0_F0F0_F0F0_F0F0_u64) >> 4);
+    }
+    if (shamt & 8) != 0 {
+        x = ((x & 0x00FF_00FF_00FF_00FF_u64) << 8) | ((x & 0xFF00_FF00_FF00_FF00_u64) >> 8);
+    }
+    if (shamt & 16) != 0 {
+        x = ((x & 0x0000_FFFF_0000_FFFF_u64) << 16) | ((x & 0xFFFF_0000_FFFF_0000_u64) >> 16);
+    }
+    if (shamt & 32) != 0 {
+        x = ((x & 0x0000_0000_FFFF_FFFF_u64) << 32) | ((x & 0xFFFF_FFFF_0000_0000_u64) >> 32);
+    }
+    x
+}
+
+fn shuffle32_stage(src: u32, maskl: u32, maskr: u32, n: u32) -> u32 {
+    let mut x = src & !(maskl | maskr);
+    x |= ((src << n) & maskl) | ((src >> n) & maskr);
+    x
+}
+
+pub fn shfl32(rs1: u32, rs2: u32) -> u32 {
+    let mut x = rs1;
+    let shamt = rs2 & 15;
+    if (shamt & 8) != 0 {
+        x = shuffle32_stage(x, 0x00ff_0000, 0x0000_ff00, 8);
+    }
+    if (shamt & 4) != 0 {
+        x = shuffle32_stage(x, 0x0f00_0f00, 0x00f0_00f0, 4);
+    }
+    if (shamt & 2) != 0 {
+        x = shuffle32_stage(x, 0x3030_3030, 0x0c0c_0c0c, 2);
+    }
+    if (shamt & 1) != 0 {
+        x = shuffle32_stage(x, 0x4444_4444, 0x2222_2222, 1);
+    }
+    x
+}
+
+pub fn unshfl32(rs1: u32, rs2: u32) -> u32 {
+    let mut x = rs1;
+    let shamt = rs2 & 15;
+    if (shamt & 1) != 0 {
+        x = shuffle32_stage(x, 0x4444_4444, 0x2222_2222, 1);
+    }
+    if (shamt & 2) != 0 {
+        x = shuffle32_stage(x, 0x3030_3030, 0x0c0c_0c0c, 2);
+    }
+    if (shamt & 4) != 0 {
+        x = shuffle32_stage(x, 0x0f00_0f00, 0x00f0_00f0, 4);
+    }
+    if (shamt & 8) != 0 {
+        x = shuffle32_stage(x, 0x00ff_0000, 0x0000_ff00, 8);
+    }
+    x
+}
+
+fn shuffle64_stage(src: u64, maskl: u64, maskr: u64, n: u64) -> u64 {
+    let mut x = src & !(maskl | maskr);
+    x |= ((src << n) & maskl) | ((src >> n) & maskr);
+    x
+}
+
+pub fn shfl64(rs1: u64, rs2: u64) -> u64 {
+    let mut x = rs1;
+    let shamt = rs2 & 31;
+    if (shamt & 16) != 0 {
+        x = shuffle64_stage(x, 0x0000_ffff_0000_0000, 0x0000_0000_ffff_0000, 16);
+    }
+    if (shamt & 8) != 0 {
+        x = shuffle64_stage(x, 0x00ff_0000_00ff_0000, 0x0000_ff00_0000_ff00, 8);
+    }
+    if (shamt & 4) != 0 {
+        x = shuffle64_stage(x, 0x0f00_0f00_0f00_0f00, 0x00f0_00f0_00f0_00f0, 4);
+    }
+    if (shamt & 2) != 0 {
+        x = shuffle64_stage(x, 0x3030_3030_3030_3030, 0x0c0c_0c0c_0c0c_0c0c, 2);
+    }
+    if (shamt & 1) != 0 {
+        x = shuffle64_stage(x, 0x4444_4444_4444_4444, 0x2222_2222_2222_2222, 1);
+    }
+    x
+}
+
+pub fn unshfl64(rs1: u64, rs2: u64) -> u64 {
+    let mut x = rs1;
+    let shamt = rs2 & 31;
+    if (shamt & 1) != 0 {
+        x = shuffle64_stage(x, 0x4444_4444_4444_4444, 0x2222_2222_2222_2222, 1);
+    }
+    if (shamt & 2) != 0 {
+        x = shuffle64_stage(x, 0x3030_3030_3030_3030, 0x0c0c_0c0c_0c0c_0c0c, 2);
+    }
+    if (shamt & 4) != 0 {
+        x = shuffle64_stage(x, 0x0f00_0f00_0f00_0f00, 0x00f0_00f0_00f0_00f0, 4);
+    }
+    if (shamt & 8) != 0 {
+        x = shuffle64_stage(x, 0x00ff_0000_00ff_0000, 0x0000_ff00_0000_ff00, 8);
+    }
+    if (shamt & 16) != 0 {
+        x = shuffle64_stage(x, 0x0000_ffff_0000_0000, 0x0000_0000_ffff_0000, 16);
+    }
+    x
+}
+
+pub fn crc32<Mac: Machine>(machine: &mut Mac, rs1: RegisterIndex, rd: RegisterIndex, nbits: u32) {
+    let mut x = machine.registers()[rs1 as usize].clone();
+    for _ in 0..nbits {
+        x = (x.clone() >> Mac::REG::from_u32(1))
+            ^ (Mac::REG::from_u32(0xEDB8_8320)
+                & !((x & Mac::REG::from_u32(1)).overflowing_sub(&Mac::REG::from_u32(1))));
+    }
+    update_register(machine, rd, x);
+}
+
+pub fn crc32c<Mac: Machine>(machine: &mut Mac, rs1: RegisterIndex, rd: RegisterIndex, nbits: u32) {
+    let mut x = machine.registers()[rs1 as usize].clone();
+    for _ in 0..nbits {
+        x = (x.clone() >> Mac::REG::from_u32(1))
+            ^ (Mac::REG::from_u32(0x82F6_3B78)
+                & !((x & Mac::REG::from_u32(1)).overflowing_sub(&Mac::REG::from_u32(1))));
+    }
+    update_register(machine, rd, x);
+}
+
+pub fn bext32(rs1: u32, rs2: u32) -> u32 {
+    let mut r: u32 = 0;
+    let mut j = 0;
+    for i in 0..32 {
+        if ((rs2 >> i) & 1) != 0 {
+            if ((rs1 >> i) & 1) != 0 {
+                r |= 1 << j;
+            }
+            j += 1;
+        }
+    }
+    r
+}
+
+pub fn bext64(rs1: u64, rs2: u64) -> u64 {
+    let mut r: u64 = 0;
+    let mut j = 0;
+    for i in 0..64 {
+        if ((rs2 >> i) & 1) != 0 {
+            if ((rs1 >> i) & 1) != 0 {
+                r |= 1 << j;
+            }
+            j += 1;
+        }
+    }
+    r
+}
+
+pub fn bdep32(rs1: u32, rs2: u32) -> u32 {
+    let mut r: u32 = 0;
+    let mut j = 0;
+    for i in 0..32 {
+        if ((rs2 >> i) & 1) != 0 {
+            if ((rs1 >> j) & 1) != 0 {
+                r |= 1 << i;
+            }
+            j += 1;
+        }
+    }
+    r
+}
+
+pub fn bdep64(rs1: u64, rs2: u64) -> u64 {
+    let mut r: u64 = 0;
+    let mut j = 0;
+    for i in 0..64 {
+        if ((rs2 >> i) & 1) != 0 {
+            if ((rs1 >> j) & 1) != 0 {
+                r |= 1 << i;
+            }
+            j += 1;
+        }
+    }
+    r
+}
+
+pub fn gorc32(rs1: u32, rs2: u32) -> u32 {
+    let mut x = rs1;
+    let shamt = rs2 & 31;
+    if (shamt & 1) != 0 {
+        x |= ((x & 0x5555_5555) << 1) | ((x & 0xAAAA_AAAA) >> 1);
+    }
+    if (shamt & 2) != 0 {
+        x |= ((x & 0x3333_3333) << 2) | ((x & 0xCCCC_CCCC) >> 2);
+    }
+    if (shamt & 4) != 0 {
+        x |= ((x & 0x0F0F_0F0F) << 4) | ((x & 0xF0F0_F0F0) >> 4);
+    }
+    if (shamt & 8) != 0 {
+        x |= ((x & 0x00FF_00FF) << 8) | ((x & 0xFF00_FF00) >> 8);
+    }
+    if (shamt & 16) != 0 {
+        x |= ((x & 0x0000_FFFF) << 16) | ((x & 0xFFFF_0000) >> 16);
+    }
+    x
+}
+
+pub fn gorc64(rs1: u64, rs2: u64) -> u64 {
+    let mut x = rs1;
+    let shamt = rs2 & 63;
+    if (shamt & 1) != 0 {
+        x |= ((x & 0x5555_5555_5555_5555) << 1) | ((x & 0xAAAA_AAAA_AAAA_AAAA) >> 1);
+    }
+    if (shamt & 2) != 0 {
+        x |= ((x & 0x3333_3333_3333_3333) << 2) | ((x & 0xCCCC_CCCC_CCCC_CCCC) >> 2);
+    }
+    if (shamt & 4) != 0 {
+        x |= ((x & 0x0F0F_0F0F_0F0F_0F0F) << 4) | ((x & 0xF0F0_F0F0_F0F0_F0F0) >> 4);
+    }
+    if (shamt & 8) != 0 {
+        x |= ((x & 0x00FF_00FF_00FF_00FF) << 8) | ((x & 0xFF00_FF00_FF00_FF00) >> 8);
+    }
+    if (shamt & 16) != 0 {
+        x |= ((x & 0x0000_FFFF_0000_FFFF) << 16) | ((x & 0xFFFF_0000_FFFF_0000) >> 16);
+    }
+    if (shamt & 32) != 0 {
+        x |= ((x & 0x0000_0000_FFFF_FFFF) << 32) | ((x & 0xFFFF_FFFF_0000_0000) >> 32);
+    }
+    x
+}
+
+pub fn bmatflip(rs1: u64) -> u64 {
+    let mut x = rs1;
+    x = shfl64(x, 31);
+    x = shfl64(x, 31);
+    x = shfl64(x, 31);
+    x
+}
+
+pub fn bmatxor(rs1: u64, rs2: u64) -> u64 {
+    let rs2t = bmatflip(rs2);
+    let mut u: [u8; 8] = [0u8; 8];
+    let mut v: [u8; 8] = [0u8; 8];
+
+    for i in 0..8 {
+        u[i] = (rs1 >> (i * 8)) as u8;
+        v[i] = (rs2t >> (i * 8)) as u8;
+    }
+    let mut x = 0;
+    for i in 0..64 {
+        if (u[i / 8] & v[i % 8]).count_ones() & 1 != 0 {
+            x |= 1 << i;
+        }
+    }
+    x
+}
+
+pub fn bmator(rs1: u64, rs2: u64) -> u64 {
+    let rs2t = bmatflip(rs2);
+    let mut u: [u8; 8] = [0u8; 8];
+    let mut v: [u8; 8] = [0u8; 8];
+
+    for i in 0..8 {
+        u[i] = (rs1 >> (i * 8)) as u8;
+        v[i] = (rs2t >> (i * 8)) as u8;
+    }
+    let mut x = 0;
+    for i in 0..64 {
+        if (u[i / 8] & v[i % 8]) != 0 {
+            x |= 1 << i;
+        }
+    }
+    x
+}
