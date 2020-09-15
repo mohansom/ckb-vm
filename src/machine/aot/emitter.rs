@@ -98,6 +98,7 @@ extern "C" {
         b: AotValue,
         is_signed: c_int,
     ) -> c_int;
+    fn aot_clz(c: *mut AotContext, target: u32, a: AotValue) -> c_int;
 
     fn aot_mov_pc(c: *mut AotContext, value: AotValue) -> c_int;
     fn aot_cond_pc(
@@ -352,6 +353,7 @@ impl Emitter {
                     ActionOp1::LogicalNot => unsafe {
                         aot_not(self.aot, target_register as u32, a_value, 1)
                     },
+                    ActionOp1::Clz => unsafe { aot_clz(self.aot, target_register as u32, a_value) },
                 };
                 check_aot_result(result)?;
                 self.allocator.restore(saved);

@@ -7,6 +7,7 @@ use std::rc::Rc;
 pub enum ActionOp1 {
     Not,
     LogicalNot,
+    Clz,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -261,8 +262,7 @@ impl Register for Value {
     }
 
     fn clz(&self) -> Value {
-        // TODO
-        Value::from_u32(0)
+        Value::Op1(ActionOp1::Clz, Rc::new(self.clone()))
     }
 
     fn ctz(&self) -> Value {

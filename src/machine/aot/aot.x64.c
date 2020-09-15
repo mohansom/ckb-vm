@@ -1134,6 +1134,30 @@ int aot_cond(AotContext* context, riscv_register_t target, AotValue condition, A
   return DASM_S_OK;
 }
 
+int aot_clz(AotContext* context, riscv_register_t target, AotValue a)
+{
+  uint32_t loc1;
+  int ret;
+  dasm_State** Dst = &context->d;
+
+  ret = aot_mov_x64(context, X64_RAX, a);
+  if (ret != DASM_S_OK) { return ret; }
+
+  | cmp rax, 0
+  | je >1
+  | bsr rax, rax
+  | neg rax
+  | add rax, 63
+  | op2_r_x mov, target, rax
+  | jmp >2
+  |1:
+  | op2_r_imm mov, target, (uint64_t)64, rax
+  | jmp >2
+  |2:
+
+  return DASM_S_OK;
+}
+
 int aot_extend(AotContext* context, riscv_register_t target, AotValue src, AotValue bits, int is_signed)
 {
   uint32_t loc1;

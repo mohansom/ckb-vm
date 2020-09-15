@@ -738,9 +738,12 @@ pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(),
         }
         insts::OP_CLZW => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let value = rs1_value.clz();
-            update_register(machine, i.rd(), Mac::REG::from_u32(value));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let value = rs1_value
+                .zero_extend(&Mac::REG::from_u8(32))
+                .clz()
+                .overflowing_sub(&Mac::REG::from_u8(32));
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_CTZ => {
@@ -1730,7 +1733,7 @@ pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(),
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let rs1_z = rs1_value.clone() & Mac::REG::from_u32(0xffff_ffff);
+            let rs1_z = rs1_value.clone().zero_extend(&Mac::REG::from_u8(32));
             let value = (rs1_z << Mac::REG::from_u32(1)).overflowing_add(rs2_value);
             update_register(machine, i.rd(), value);
             None
@@ -1739,7 +1742,7 @@ pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(),
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let rs1_z = rs1_value.clone() & Mac::REG::from_u32(0xffff_ffff);
+            let rs1_z = rs1_value.clone().zero_extend(&Mac::REG::from_u8(32));
             let value = (rs1_z << Mac::REG::from_u32(2)).overflowing_add(rs2_value);
             update_register(machine, i.rd(), value);
             None
@@ -1748,7 +1751,7 @@ pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(),
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let rs1_z = rs1_value.clone() & Mac::REG::from_u32(0xffff_ffff);
+            let rs1_z = rs1_value.clone().zero_extend(&Mac::REG::from_u8(32));
             let value = (rs1_z << Mac::REG::from_u32(3)).overflowing_add(rs2_value);
             update_register(machine, i.rd(), value);
             None
@@ -1757,7 +1760,7 @@ pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(),
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let value = rs1_value.overflowing_add(&rs2_value) & Mac::REG::from_u32(0xffff_ffff);
+            let value = rs1_value.overflowing_add(&rs2_value).zero_extend(&Mac::REG::from_u8(32));
             update_register(machine, i.rd(), value);
             None
         }
@@ -1765,7 +1768,7 @@ pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(),
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let value = rs1_value.overflowing_sub(&rs2_value) & Mac::REG::from_u32(0xffff_ffff);
+            let value = rs1_value.overflowing_sub(&rs2_value).zero_extend(&Mac::REG::from_u8(32));
             update_register(machine, i.rd(), value);
             None
         }
@@ -1773,15 +1776,15 @@ pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(),
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &Mac::REG::from_i32(i.immediate_s());
-            let value = rs1_value.overflowing_add(rs2_value) & Mac::REG::from_u32(0xffff_ffff);
-            update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
+            let value = rs1_value.overflowing_add(rs2_value).zero_extend(&Mac::REG::from_u8(32));
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_ADDUW => {
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = Mac::REG::from_u8(i.rs2() as u8);
-            let rs2_u = rs2_value & Mac::REG::from_u32(0xffff_ffff);
+            let rs2_u = rs2_value.zero_extend(&Mac::REG::from_u8(32));
             let value = rs1_value.overflowing_add(&rs2_u);
             update_register(machine, i.rd(), value);
             None
@@ -1790,7 +1793,7 @@ pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(),
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = Mac::REG::from_u8(i.rs2() as u8);
-            let rs2_u = rs2_value & Mac::REG::from_u32(0xffff_ffff);
+            let rs2_u = rs2_value.zero_extend(&Mac::REG::from_u8(32));
             let value = rs1_value.overflowing_sub(&rs2_u);
             update_register(machine, i.rd(), value);
             None
@@ -1799,7 +1802,7 @@ pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(),
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = Mac::REG::from_u8(i.rs2() as u8);
-            let rs1_u = rs1_value.clone() & Mac::REG::from_u32(0xffff_ffff);
+            let rs1_u = rs1_value.clone().zero_extend(&Mac::REG::from_u8(32));
             let shamt = rs2_value & Mac::REG::from_u8(Mac::REG::BITS - 1);
             let value = rs1_u << shamt;
             update_register(machine, i.rd(), value);
