@@ -545,9 +545,9 @@ pub fn unshfl64(rs1: u64, rs2: u64) -> u64 {
 pub fn crc32<Mac: Machine>(machine: &mut Mac, rs1: RegisterIndex, rd: RegisterIndex, nbits: u32) {
     let mut x = machine.registers()[rs1 as usize].clone();
     for _ in 0..nbits {
-        x = (x.clone() >> Mac::REG::from_u32(1))
+        x = (x.clone() >> Mac::REG::one())
             ^ (Mac::REG::from_u32(0xEDB8_8320)
-                & !((x & Mac::REG::from_u32(1)).overflowing_sub(&Mac::REG::from_u32(1))));
+                & !((x & Mac::REG::one()).overflowing_sub(&Mac::REG::one())));
     }
     update_register(machine, rd, x);
 }
@@ -555,9 +555,9 @@ pub fn crc32<Mac: Machine>(machine: &mut Mac, rs1: RegisterIndex, rd: RegisterIn
 pub fn crc32c<Mac: Machine>(machine: &mut Mac, rs1: RegisterIndex, rd: RegisterIndex, nbits: u32) {
     let mut x = machine.registers()[rs1 as usize].clone();
     for _ in 0..nbits {
-        x = (x.clone() >> Mac::REG::from_u32(1))
+        x = (x.clone() >> Mac::REG::one())
             ^ (Mac::REG::from_u32(0x82F6_3B78)
-                & !((x & Mac::REG::from_u32(1)).overflowing_sub(&Mac::REG::from_u32(1))));
+                & !((x & Mac::REG::one()).overflowing_sub(&Mac::REG::one())));
     }
     update_register(machine, rd, x);
 }
