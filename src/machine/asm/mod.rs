@@ -1,5 +1,5 @@
 use crate::{
-    decoder::{build_imac_decoder, Decoder},
+    decoder::{build_decoder, Decoder},
     instructions::{
         blank_instruction, extract_opcode, instruction_length, is_basic_block_end_instruction,
     },
@@ -51,6 +51,10 @@ impl CoreMachine for Box<AsmCoreMachine> {
 
     fn set_register(&mut self, idx: usize, value: Self::REG) {
         self.registers[idx] = value;
+    }
+
+    fn isa(&self) -> u8 {
+        self.isa
     }
 
     fn version(&self) -> u32 {
@@ -284,7 +288,7 @@ impl<'a> AsmMachine<'a> {
     }
 
     pub fn run(&mut self) -> Result<i8, Error> {
-        let decoder = build_imac_decoder::<u64>(self.machine.version());
+        let decoder = build_decoder::<u64>(self.machine.isa(), self.machine.version());
         self.machine.set_running(true);
         while self.machine.running() {
             let result = if let Some(aot_code) = &self.aot_code {

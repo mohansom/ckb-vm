@@ -5,13 +5,13 @@ pub mod asm;
 pub mod trace;
 
 use super::debugger::Debugger;
-use super::decoder::{build_imac_decoder, Decoder};
+use super::decoder::{build_decoder, Decoder};
 use super::instructions::{execute, Instruction, Register};
 use super::memory::{round_page_down, round_page_up, Memory, FLAG_EXECUTABLE, FLAG_FREEZED};
 use super::syscalls::Syscalls;
 use super::{
     registers::{A0, A7, REGISTER_ABI_NAMES, SP},
-    Error, DEFAULT_STACK_SIZE, RISCV_GENERAL_REGISTER_NUMBER, RISCV_MAX_MEMORY,
+    Error, DEFAULT_STACK_SIZE, ISA_B, ISA_IMAC, RISCV_GENERAL_REGISTER_NUMBER, RISCV_MAX_MEMORY,
 };
 use bytes::Bytes;
 use goblin::elf::program_header::{PF_R, PF_W, PF_X, PT_LOAD};
@@ -71,6 +71,7 @@ pub trait CoreMachine {
     // Current running machine version, used to support compatible behavior
     // in case of bug fixes.
     fn version(&self) -> u32;
+    fn isa(&self) -> u8;
 }
 
 /// This is the core trait describing a full RISC-V machine. Instruction
@@ -217,6 +218,7 @@ pub struct DefaultCoreMachine<R, M> {
     cycles: u64,
     max_cycles: Option<u64>,
     running: bool,
+    isa: u8,
     version: u32,
 }
 
@@ -247,6 +249,10 @@ impl<R: Register, M: Memory<R>> CoreMachine for DefaultCoreMachine<R, M> {
         self.registers[idx] = value;
     }
 
+    fn isa(&self) -> u8 {
+        self.isa
+    }
+
     fn version(&self) -> u32 {
         self.version
     }
@@ -275,8 +281,9 @@ impl<R: Register, M: Memory<R>> SupportMachine for DefaultCoreMachine<R, M> {
 }
 
 impl<R: Register, M: Memory<R> + Default> DefaultCoreMachine<R, M> {
-    pub fn new(version: u32, max_cycles: u64) -> Self {
+    pub fn new(isa: u8, version: u32, max_cycles: u64) -> Self {
         Self {
+            isa,
             version,
             max_cycles: Some(max_cycles),
             ..Default::default()
@@ -285,6 +292,7 @@ impl<R: Register, M: Memory<R> + Default> DefaultCoreMachine<R, M> {
 
     pub fn latest() -> Self {
         Self {
+            isa: ISA_IMAC | ISA_B,
             version: VERSION1,
             ..Default::default()
         }
@@ -344,6 +352,10 @@ impl<Inner: CoreMachine> CoreMachine for DefaultMachine<'_, Inner> {
 
     fn set_register(&mut self, idx: usize, value: Self::REG) {
         self.inner.set_register(idx, value)
+    }
+
+    fn isa(&self) -> u8 {
+        self.inner.isa()
     }
 
     fn version(&self) -> u32 {
@@ -462,7 +474,7 @@ impl<'a, Inner: SupportMachine> DefaultMachine<'a, Inner> {
     // not be practical in production, but it serves as a baseline and
     // reference implementation
     pub fn run(&mut self) -> Result<i8, Error> {
-        let decoder = build_imac_decoder::<Inner::REG>(self.version());
+        let decoder = build_decoder::<Inner::REG>(self.isa(), self.version());
         self.set_running(true);
         while self.running() {
             self.step(&decoder)?;
