@@ -1,5 +1,11 @@
 #[cfg(has_asm)]
-use ckb_vm::machine::asm::AsmMachine;
+use ckb_vm::{
+    machine::{
+        asm::{AsmCoreMachine, AsmMachine},
+        VERSION1,
+    },
+    DefaultMachineBuilder, ISA_B, ISA_IMAC,
+};
 use ckb_vm::{run, SparseMemory};
 
 use bytes::Bytes;
@@ -14,7 +20,10 @@ pub fn test_b_extension_asm() {
     file.read_to_end(&mut buffer).unwrap();
     let buffer = Bytes::from(buffer);
 
-    let mut machine = AsmMachine::default();
+    let asm_core = AsmCoreMachine::new(ISA_IMAC | ISA_B, VERSION1, u64::max_value());
+    let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::new(asm_core).build();
+    let mut machine = AsmMachine::new(core, None);
+
     machine
         .load_program(&buffer, &["b_extension".into()])
         .unwrap();

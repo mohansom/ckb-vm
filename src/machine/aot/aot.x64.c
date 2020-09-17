@@ -99,6 +99,7 @@ typedef struct {
   uint8_t running;
   uint64_t cycles;
   uint64_t max_cycles;
+  uint8_t isa;
   uint32_t version;
   uint8_t flags[CKB_VM_ASM_RISCV_PAGES];
   uint8_t memory[CKB_VM_ASM_RISCV_MAX_MEMORY];
