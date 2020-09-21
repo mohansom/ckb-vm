@@ -7,7 +7,10 @@ use super::{
 use ckb_vm_definitions::instructions as insts;
 
 #[allow(clippy::cognitive_complexity)]
-pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(), Error> {
+pub fn execute_instruction<Mac: Machine>(
+    inst: Instruction,
+    machine: &mut Mac,
+) -> Result<Option<Mac::REG>, Error> {
     let op = extract_opcode(inst);
     let next_pc: Option<Mac::REG> = match op {
         insts::OP_SUB => {
@@ -1824,6 +1827,12 @@ pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(),
             return Err(Error::InvalidOp(op as u8))
         }
     };
+    Ok(next_pc)
+}
+
+#[allow(clippy::cognitive_complexity)]
+pub fn execute<Mac: Machine>(inst: Instruction, machine: &mut Mac) -> Result<(), Error> {
+    let next_pc = execute_instruction(inst, machine)?;
     let default_instruction_size = instruction_length(inst);
     let default_next_pc = machine
         .pc()
