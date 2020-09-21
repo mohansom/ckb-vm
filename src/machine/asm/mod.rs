@@ -1,7 +1,8 @@
 use crate::{
     decoder::{build_decoder, Decoder},
     instructions::{
-        blank_instruction, extract_opcode, instruction_length, is_basic_block_end_instruction,
+        blank_instruction, execute_instruction, extract_opcode, instruction_length,
+        is_basic_block_end_instruction,
     },
     machine::aot::AotCode,
     memory::{
@@ -16,8 +17,8 @@ use bytes::Bytes;
 use ckb_vm_definitions::{
     asm::{
         calculate_slot, Trace, RET_DECODE_TRACE, RET_DYNAMIC_JUMP, RET_EBREAK, RET_ECALL,
-        RET_INVALID_PERMISSION, RET_MAX_CYCLES_EXCEEDED, RET_OUT_OF_BOUND,
-        RET_UNIMPLEMENTED_INSTRUCTION, TRACE_ITEM_LENGTH,
+        RET_INVALID_PERMISSION, RET_MAX_CYCLES_EXCEEDED, RET_OUT_OF_BOUND, RET_SLOWPATH,
+        TRACE_ITEM_LENGTH,
     },
     instructions::OP_CUSTOM_TRACE_END,
 };
@@ -357,7 +358,11 @@ impl<'a> AsmMachine<'a> {
                 RET_MAX_CYCLES_EXCEEDED => return Err(Error::InvalidCycles),
                 RET_OUT_OF_BOUND => return Err(Error::OutOfBound),
                 RET_INVALID_PERMISSION => return Err(Error::InvalidPermission),
-                RET_UNIMPLEMENTED_INSTRUCTION => return Err(Error::Unimplemented),
+                RET_SLOWPATH => {
+                    let pc = *self.machine.pc() - 4;
+                    let instruction = decoder.decode(self.machine.memory_mut(), pc)?;
+                    execute_instruction(instruction, &mut self.machine)?;
+                }
                 _ => return Err(Error::Asm(result)),
             }
         }
@@ -401,7 +406,11 @@ impl<'a> AsmMachine<'a> {
             RET_MAX_CYCLES_EXCEEDED => return Err(Error::InvalidCycles),
             RET_OUT_OF_BOUND => return Err(Error::OutOfBound),
             RET_INVALID_PERMISSION => return Err(Error::InvalidPermission),
-            RET_UNIMPLEMENTED_INSTRUCTION => return Err(Error::Unimplemented),
+            RET_SLOWPATH => {
+                let pc = *self.machine.pc() - 4;
+                let instruction = decoder.decode(self.machine.memory_mut(), pc)?;
+                execute_instruction(instruction, &mut self.machine)?;
+            }
             _ => return Err(Error::Asm(result)),
         }
         self.machine.inner_mut().traces[slot] = Trace::default();

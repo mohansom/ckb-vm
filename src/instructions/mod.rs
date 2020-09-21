@@ -15,7 +15,7 @@ pub use ckb_vm_definitions::instructions::{
     self as insts, Instruction, InstructionOpcode, INSTRUCTION_OPCODE_NAMES, MAXIMUM_RVC_OPCODE,
     MINIMAL_RVC_OPCODE,
 };
-pub use execute::execute;
+pub use execute::{execute, execute_instruction};
 
 type RegisterIndex = usize;
 type Immediate = i32;
@@ -241,6 +241,7 @@ impl R4type {
 
 pub fn is_basic_block_end_instruction(i: Instruction) -> bool {
     match extract_opcode(i) {
+        // IMAC
         insts::OP_AUIPC => true,
         insts::OP_JALR => true,
         insts::OP_BEQ => true,
@@ -261,6 +262,34 @@ pub fn is_basic_block_end_instruction(i: Instruction) -> bool {
         insts::OP_RVC_JR => true,
         insts::OP_VERSION1_JALR => true,
         insts::OP_VERSION1_RVC_JALR => true,
+        // B
+        insts::OP_GREV => true,
+        insts::OP_GREVI => true,
+        insts::OP_GREVW => true,
+        insts::OP_GREVIW => true,
+        insts::OP_SHFL => true,
+        insts::OP_UNSHFL => true,
+        insts::OP_SHFLI => true,
+        insts::OP_UNSHFLI => true,
+        insts::OP_SHFLW => true,
+        insts::OP_UNSHFLW => true,
+        insts::OP_GORC => true,
+        insts::OP_GORCI => true,
+        insts::OP_GORCW => true,
+        insts::OP_GORCIW => true,
+        insts::OP_BFP => true,
+        insts::OP_BFPW => true,
+        insts::OP_CRC32B => true,
+        insts::OP_CRC32H => true,
+        insts::OP_CRC32W => true,
+        insts::OP_CRC32D => true,
+        insts::OP_CRC32CB => true,
+        insts::OP_CRC32CH => true,
+        insts::OP_CRC32CW => true,
+        insts::OP_CRC32CD => true,
+        insts::OP_BMATFLIP => true,
+        insts::OP_BMATOR => true,
+        insts::OP_BMATXOR => true,
         _ => false,
     }
 }
