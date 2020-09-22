@@ -3,7 +3,8 @@ mod emitter;
 use super::super::{
     decoder::build_decoder,
     instructions::{
-        ast::Value, execute, instruction_length, is_basic_block_end_instruction, Instruction,
+        ast::Value, execute, instruction_length, is_basic_block_end_instruction,
+        is_slowpath_instruction, Instruction,
     },
     machine::VERSION1,
     CoreMachine, DefaultCoreMachine, Error, FlatMemory, InstructionCycleFunc, Machine, Memory,
@@ -44,6 +45,7 @@ pub enum Write {
     },
     Ecall,
     Ebreak,
+    Slowpath,
 }
 
 fn init_registers() -> [Value; 32] {
@@ -468,7 +470,11 @@ impl AotCompilingMachine {
                 .as_ref()
                 .map(|f| f(*instruction))
                 .unwrap_or(0);
-            execute(*instruction, self)?;
+            if is_slowpath_instruction(*instruction) {
+                self.writes.push(Write::Slowpath);
+            } else {
+                execute(*instruction, self)?;
+            }
             self.pc = Value::from_u64(pc + u64::from(length));
         }
         let pc = self.read_pc()?;

@@ -779,25 +779,25 @@ pub fn execute_instruction<Mac: Machine>(
         }
         insts::OP_ANDN => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].clone();
-            let rs2_value = machine.registers()[i.rs2()].clone();
-            let value = rs1_value & !rs2_value;
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let value = rs1_value.clone() & !rs2_value.clone();
             update_register(machine, i.rd(), value);
             None
         }
         insts::OP_ORN => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].clone();
-            let rs2_value = machine.registers()[i.rs2()].clone();
-            let value = rs1_value | !rs2_value;
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let value = rs1_value.clone() | !rs2_value.clone();
             update_register(machine, i.rd(), value);
             None
         }
         insts::OP_XNOR => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].clone();
-            let rs2_value = machine.registers()[i.rs2()].clone();
-            let value = rs1_value ^ !rs2_value;
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let value = rs1_value.clone() ^ !rs2_value.clone();
             update_register(machine, i.rd(), value);
             None
         }
@@ -835,22 +835,22 @@ pub fn execute_instruction<Mac: Machine>(
         }
         insts::OP_PACKW => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = machine.registers()[i.rs2()].to_u32();
-            let upper = rs2_value << 16;
-            let lower = rs1_value << 16 >> 16;
-            let value = Mac::REG::from_u32(upper | lower);
-            update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let upper = rs2_value.clone() << Mac::REG::from_u8(16);
+            let lower = rs1_value.zero_extend(&Mac::REG::from_u8(16));
+            let value = (upper | lower).sign_extend(&Mac::REG::from_u8(32));
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_PACKUW => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = machine.registers()[i.rs2()].to_u32();
-            let upper = rs2_value >> 16 << 16;
-            let lower = rs1_value >> 16;
-            let value = Mac::REG::from_u32(upper | lower);
-            update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let upper = rs2_value.clone() & Mac::REG::from_u32(0xffff_0000);
+            let lower = rs1_value.zero_extend(&Mac::REG::from_u8(32)) >> Mac::REG::from_u8(16);
+            let value = (upper | lower).sign_extend(&Mac::REG::from_u8(32));
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_MIN => {
@@ -888,16 +888,16 @@ pub fn execute_instruction<Mac: Machine>(
         insts::OP_SEXTB => {
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
-            let shift = Mac::REG::from_u8(Mac::REG::BITS - 8);
-            let value = rs1_value.signed_shl(&shift).signed_shr(&shift);
+            let shift = &Mac::REG::from_u8(Mac::REG::BITS - 8);
+            let value = rs1_value.signed_shl(shift).signed_shr(shift);
             update_register(machine, i.rd(), value);
             None
         }
         insts::OP_SEXTH => {
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
-            let shift = Mac::REG::from_u8(Mac::REG::BITS - 16);
-            let value = rs1_value.signed_shl(&shift).signed_shr(&shift);
+            let shift = &Mac::REG::from_u8(Mac::REG::BITS - 16);
+            let value = rs1_value.signed_shl(shift).signed_shr(shift);
             update_register(machine, i.rd(), value);
             None
         }
@@ -905,7 +905,7 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::BITS - 1);
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::SHIFT_MASK);
             let value = rs1_value.clone() | (Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value);
             None
@@ -913,27 +913,27 @@ pub fn execute_instruction<Mac: Machine>(
         insts::OP_SBSETI => {
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
-            let rs2_value = Mac::REG::from_u32(i.immediate());
-            let shamt = rs2_value & Mac::REG::from_u8(Mac::REG::BITS - 1);
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::SHIFT_MASK);
             let value = rs1_value.clone() | (Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value);
             None
         }
         insts::OP_SBSETW => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = machine.registers()[i.rs2()].to_u32();
-            let shamt = rs2_value & 31;
-            let value = Mac::REG::from_u32(rs1_value | (1 << shamt));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(31);
+            let value = rs1_value.clone() | (Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
             None
         }
         insts::OP_SBSETIW => {
             let i = Itype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = i.immediate();
-            let shamt = rs2_value & 31;
-            let value = Mac::REG::from_u32(rs1_value | (1 << shamt));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(31);
+            let value = rs1_value.clone() | (Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
             None
         }
@@ -941,7 +941,7 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::BITS - 1);
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::SHIFT_MASK);
             let value = rs1_value.clone() & !(Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value);
             None
@@ -949,27 +949,27 @@ pub fn execute_instruction<Mac: Machine>(
         insts::OP_SBCLRI => {
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
-            let rs2_value = Mac::REG::from_u32(i.immediate());
-            let shamt = rs2_value & Mac::REG::from_u8(Mac::REG::BITS - 1);
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::SHIFT_MASK);
             let value = rs1_value.clone() & !(Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value);
             None
         }
         insts::OP_SBCLRW => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = machine.registers()[i.rs2()].to_u32();
-            let shamt = rs2_value & 31;
-            let value = Mac::REG::from_u32(rs1_value & !(1 << shamt));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(31);
+            let value = rs1_value.clone() & !(Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
             None
         }
         insts::OP_SBCLRIW => {
             let i = Itype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = i.immediate();
-            let shamt = rs2_value & 31;
-            let value = Mac::REG::from_u32(rs1_value & !(1 << shamt));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(31);
+            let value = rs1_value.clone() & !(Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
             None
         }
@@ -977,7 +977,7 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::BITS - 1);
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::SHIFT_MASK);
             let value = rs1_value.clone() ^ (Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value);
             None
@@ -985,27 +985,27 @@ pub fn execute_instruction<Mac: Machine>(
         insts::OP_SBINVI => {
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
-            let rs2_value = Mac::REG::from_u32(i.immediate());
-            let shamt = rs2_value & Mac::REG::from_u8(Mac::REG::BITS - 1);
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::SHIFT_MASK);
             let value = rs1_value.clone() ^ (Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value);
             None
         }
         insts::OP_SBINVW => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = machine.registers()[i.rs2()].to_u32();
-            let shamt = rs2_value & 31;
-            let value = Mac::REG::from_u32(rs1_value ^ (1 << shamt));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(31);
+            let value = rs1_value.clone() ^ (Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
             None
         }
         insts::OP_SBINVIW => {
             let i = Itype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = i.immediate();
-            let shamt = rs2_value & 31;
-            let value = Mac::REG::from_u32(rs1_value ^ (1 << shamt));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(31);
+            let value = rs1_value.clone() ^ (Mac::REG::one() << shamt);
             update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
             None
         }
@@ -1013,7 +1013,7 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::BITS - 1);
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::SHIFT_MASK);
             let value = Mac::REG::one() & (rs1_value.clone() >> shamt);
             update_register(machine, i.rd(), value);
             None
@@ -1021,18 +1021,18 @@ pub fn execute_instruction<Mac: Machine>(
         insts::OP_SBEXTI => {
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
-            let rs2_value = Mac::REG::from_u32(i.immediate());
-            let shamt = rs2_value & Mac::REG::from_u8(Mac::REG::BITS - 1);
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(Mac::REG::SHIFT_MASK);
             let value = Mac::REG::one() & (rs1_value.clone() >> shamt);
             update_register(machine, i.rd(), value);
             None
         }
         insts::OP_SBEXTW => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = machine.registers()[i.rs2()].to_u32();
-            let shamt = rs2_value & 31;
-            let value = Mac::REG::from_u32(1 & (rs1_value >> shamt));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(31);
+            let value = Mac::REG::one() & (rs1_value.clone() >> shamt);
             update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
             None
         }
@@ -1040,15 +1040,17 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let value = common::slo::<Mac>(rs1_value.clone(), rs2_value.clone());
+            let shamt = rs2_value.clone() & (Mac::REG::from_u8(Mac::REG::SHIFT_MASK));
+            let value = !(!rs1_value.clone() << shamt);
             update_register(machine, i.rd(), value);
             None
         }
         insts::OP_SLOI => {
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
-            let rs2_value = Mac::REG::from_u32(i.immediate());
-            let value = common::slo::<Mac>(rs1_value.clone(), rs2_value);
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let shamt = rs2_value.clone() & (Mac::REG::from_u8(Mac::REG::SHIFT_MASK));
+            let value = !(!rs1_value.clone() << shamt);
             update_register(machine, i.rd(), value);
             None
         }
@@ -1056,33 +1058,35 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let value = common::slo32(rs1_value.to_u32(), rs2_value.to_u32());
-            let r = Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32));
-            update_register(machine, i.rd(), r);
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(31);
+            let value = !(!rs1_value.clone() << shamt);
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_SLOIW => {
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
-            let rs2_value = i.immediate();
-            let value = common::slo32(rs1_value.to_u32(), rs2_value);
-            let r = Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32));
-            update_register(machine, i.rd(), r);
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(31);
+            let value = !(!rs1_value.clone() << shamt);
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_SRO => {
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let value = common::sro::<Mac>(rs1_value.clone(), rs2_value.clone());
+            let shamt = rs2_value.clone() & (Mac::REG::from_u8(Mac::REG::SHIFT_MASK));
+            let value = !(!rs1_value.clone() >> shamt);
             update_register(machine, i.rd(), value);
             None
         }
         insts::OP_SROI => {
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
-            let rs2_value = Mac::REG::from_u32(i.immediate());
-            let value = common::sro::<Mac>(rs1_value.clone(), rs2_value);
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let shamt = rs2_value.clone() & (Mac::REG::from_u8(Mac::REG::SHIFT_MASK));
+            let value = !(!rs1_value.clone() >> shamt);
             update_register(machine, i.rd(), value);
             None
         }
@@ -1090,25 +1094,26 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let value = common::sro32(rs1_value.to_u32(), rs2_value.to_u32());
-            let r = Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32));
-            update_register(machine, i.rd(), r);
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(31);
+            let value = !((!rs1_value.clone()).zero_extend(&Mac::REG::from_u8(32)) >> shamt);
+            update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
             None
         }
         insts::OP_SROIW => {
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
-            let rs2_value = i.immediate();
-            let value = common::sro32(rs1_value.to_u32(), rs2_value);
-            let r = Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32));
-            update_register(machine, i.rd(), r);
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let shamt = rs2_value.clone() & Mac::REG::from_u8(31);
+            let value = !((!rs1_value.clone()).zero_extend(&Mac::REG::from_u8(32)) >> shamt);
+            update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
             None
         }
         insts::OP_ROR => {
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let value = rs1_value.rotate_right(rs2_value);
+            let value =
+                rs1_value.ror(&(rs2_value.clone() & Mac::REG::from_u8(Mac::REG::SHIFT_MASK)));
             update_register(machine, i.rd(), value);
             None
         }
@@ -1116,66 +1121,75 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &Mac::REG::from_u32(i.immediate());
-            let value = rs1_value.rotate_right(rs2_value);
+            let value =
+                rs1_value.ror(&(rs2_value.clone() & Mac::REG::from_u8(Mac::REG::SHIFT_MASK)));
             update_register(machine, i.rd(), value);
             None
         }
         insts::OP_RORW => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = machine.registers()[i.rs2()].to_u32();
-            let value = Mac::REG::from_u32(rs1_value.rotate_right(rs2_value));
-            update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let lhs_l = rs1_value.zero_extend(&Mac::REG::from_u8(32));
+            let lhs_h = lhs_l.clone() << Mac::REG::from_u8(32);
+            let lhs = lhs_h | lhs_l;
+            let value = lhs.ror(&rs2_value).sign_extend(&Mac::REG::from_u8(32));
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_RORIW => {
             let i = Itype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = i.immediate();
-            let value = Mac::REG::from_u32(rs1_value.rotate_right(rs2_value));
-            update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &Mac::REG::from_u32(i.immediate());
+            let lhs_l = rs1_value.zero_extend(&Mac::REG::from_u8(32));
+            let lhs_h = lhs_l.clone() << Mac::REG::from_u8(32);
+            let lhs = lhs_h | lhs_l;
+            let value = lhs.ror(&rs2_value).sign_extend(&Mac::REG::from_u8(32));
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_ROL => {
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let value = rs1_value.rotate_left(rs2_value);
+            let value =
+                rs1_value.rol(&(rs2_value.clone() & Mac::REG::from_u8(Mac::REG::SHIFT_MASK)));
             update_register(machine, i.rd(), value);
             None
         }
         insts::OP_ROLW => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = machine.registers()[i.rs2()].to_u32();
-            let value = Mac::REG::from_u32(rs1_value.rotate_left(rs2_value));
-            update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let lhs_l = rs1_value.zero_extend(&Mac::REG::from_u8(32));
+            let lhs_h = lhs_l.clone() << Mac::REG::from_u8(32);
+            let lhs = lhs_h | lhs_l;
+            let value = lhs.rol(&rs2_value).sign_extend(&Mac::REG::from_u8(32));
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_GREV => {
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            if Mac::REG::BITS == 32 {
-                let value = common::grev32(rs1_value.to_u32(), rs2_value.to_u32());
-                update_register(machine, i.rd(), Mac::REG::from_u32(value));
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::grev32(rs1_value.to_u32(), rs2_value.to_u32()))
             } else {
-                let value = common::grev64(rs1_value.to_u64(), rs2_value.to_u64());
-                update_register(machine, i.rd(), Mac::REG::from_u64(value));
+                Mac::REG::from_u64(common::grev64(rs1_value.to_u64(), rs2_value.to_u64()))
             };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_GREVI => {
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = i.immediate();
-            if Mac::REG::BITS == 32 {
-                let value = common::grev32(rs1_value.to_u32(), rs2_value.to_u32());
-                update_register(machine, i.rd(), Mac::REG::from_u32(value));
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::grev32(rs1_value.to_u32(), rs2_value.to_u32()))
             } else {
-                let value = common::grev64(rs1_value.to_u64(), rs2_value.to_u64());
-                update_register(machine, i.rd(), Mac::REG::from_u64(value));
+                Mac::REG::from_u64(common::grev64(rs1_value.to_u64(), rs2_value.to_u64()))
             };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_GREVW => {
@@ -1201,11 +1215,9 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
             let value = if Mac::REG::BITS == 32 {
-                let value = common::shfl32(rs1_value.to_u32(), rs2_value.to_u32());
-                Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32))
+                Mac::REG::from_u32(common::shfl32(rs1_value.to_u32(), rs2_value.to_u32()))
             } else {
-                let value = common::shfl64(rs1_value.to_u64(), rs2_value.to_u64());
-                Mac::REG::from_u64(value)
+                Mac::REG::from_u64(common::shfl64(rs1_value.to_u64(), rs2_value.to_u64()))
             };
             update_register(machine, i.rd(), value);
             None
@@ -1215,11 +1227,9 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
             let value = if Mac::REG::BITS == 32 {
-                let value = common::unshfl32(rs1_value.to_u32(), rs2_value.to_u32());
-                Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32))
+                Mac::REG::from_u32(common::unshfl32(rs1_value.to_u32(), rs2_value.to_u32()))
             } else {
-                let value = common::unshfl64(rs1_value.to_u64(), rs2_value.to_u64());
-                Mac::REG::from_u64(value)
+                Mac::REG::from_u64(common::unshfl64(rs1_value.to_u64(), rs2_value.to_u64()))
             };
             update_register(machine, i.rd(), value);
             None
@@ -1229,11 +1239,9 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = i.immediate();
             let value = if Mac::REG::BITS == 32 {
-                let value = common::shfl32(rs1_value.to_u32(), rs2_value);
-                Mac::REG::from_u32(value)
+                Mac::REG::from_u32(common::shfl32(rs1_value.to_u32(), rs2_value.to_u32()))
             } else {
-                let value = common::shfl64(rs1_value.to_u64(), rs2_value as u64);
-                Mac::REG::from_u64(value)
+                Mac::REG::from_u64(common::shfl64(rs1_value.to_u64(), rs2_value.to_u64()))
             };
             update_register(machine, i.rd(), value);
             None
@@ -1243,11 +1251,9 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = i.immediate();
             let value = if Mac::REG::BITS == 32 {
-                let value = common::unshfl32(rs1_value.to_u32(), rs2_value);
-                Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32))
+                Mac::REG::from_u32(common::unshfl32(rs1_value.to_u32(), rs2_value.to_u32()))
             } else {
-                let value = common::unshfl64(rs1_value.to_u64(), rs2_value as u64);
-                Mac::REG::from_u64(value)
+                Mac::REG::from_u64(common::unshfl64(rs1_value.to_u64(), rs2_value.to_u64()))
             };
             update_register(machine, i.rd(), value);
             None
@@ -1275,11 +1281,9 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
             let value = if Mac::REG::BITS == 32 {
-                let value = common::gorc32(rs1_value.to_u32(), rs2_value.to_u32());
-                Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32))
+                Mac::REG::from_u32(common::gorc32(rs1_value.to_u32(), rs2_value.to_u32()))
             } else {
-                let value = common::gorc64(rs1_value.to_u64(), rs2_value.to_u64());
-                Mac::REG::from_u64(value)
+                Mac::REG::from_u64(common::gorc64(rs1_value.to_u64(), rs2_value.to_u64()))
             };
             update_register(machine, i.rd(), value);
             None
@@ -1289,11 +1293,9 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = i.immediate();
             let value = if Mac::REG::BITS == 32 {
-                let value = common::gorc32(rs1_value.to_u32(), rs2_value);
-                Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32))
+                Mac::REG::from_u32(common::gorc32(rs1_value.to_u32(), rs2_value.to_u32()))
             } else {
-                let value = common::gorc64(rs1_value.to_u64(), rs2_value as u64);
-                Mac::REG::from_u64(value)
+                Mac::REG::from_u64(common::gorc64(rs1_value.to_u64(), rs2_value.to_u64()))
             };
             update_register(machine, i.rd(), value);
             None
@@ -1311,7 +1313,7 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = i.immediate();
-            let value = common::gorc32(rs1_value.to_u32(), rs2_value);
+            let value = common::gorc32(rs1_value.to_u32(), rs2_value.to_u32());
             let r = Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32));
             update_register(machine, i.rd(), r);
             None
@@ -1326,7 +1328,7 @@ pub fn execute_instruction<Mac: Machine>(
             }
             let mut len =
                 (cfg.clone() >> Mac::REG::from_u8(8)) & Mac::REG::from_u8(Mac::REG::BITS / 2 - 1);
-            let off = cfg & Mac::REG::from_u8(Mac::REG::BITS - 1);
+            let off = cfg & Mac::REG::from_u8(Mac::REG::SHIFT_MASK);
             if len.to_u32() == 0 {
                 len = Mac::REG::from_u8(Mac::REG::BITS / 2);
             }
@@ -1361,11 +1363,9 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
             let value = if Mac::REG::BITS == 32 {
-                let value = common::bext32(rs1_value.to_u32(), rs2_value.to_u32());
-                Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32))
+                Mac::REG::from_u32(common::bext32(rs1_value.to_u32(), rs2_value.to_u32()))
             } else {
-                let value = common::bext64(rs1_value.to_u64(), rs2_value.to_u64());
-                Mac::REG::from_u64(value)
+                Mac::REG::from_u64(common::bext64(rs1_value.to_u64(), rs2_value.to_u64()))
             };
             update_register(machine, i.rd(), value);
             None
@@ -1384,11 +1384,9 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
             let value = if Mac::REG::BITS == 32 {
-                let value = common::bdep32(rs1_value.to_u32(), rs2_value.to_u32());
-                Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32))
+                Mac::REG::from_u32(common::bdep32(rs1_value.to_u32(), rs2_value.to_u32()))
             } else {
-                let value = common::bdep64(rs1_value.to_u64(), rs2_value.to_u64());
-                Mac::REG::from_u64(value)
+                Mac::REG::from_u64(common::bdep64(rs1_value.to_u64(), rs2_value.to_u64()))
             };
             update_register(machine, i.rd(), value);
             None
@@ -1406,27 +1404,20 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let mut x = Mac::REG::zero();
-            for i in 0..Mac::REG::BITS {
-                let j = Mac::REG::from_u32(i as u32);
-                if ((rs2_value.clone() >> j.clone()) & Mac::REG::one()).to_u64() != 0 {
-                    x = x ^ (rs1_value.clone() << j.clone());
-                }
-            }
-            update_register(machine, i.rd(), x);
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::clmul32(rs1_value.to_u32(), rs2_value.to_u32()))
+            } else {
+                Mac::REG::from_u64(common::clmul64(rs1_value.to_u64(), rs2_value.to_u64()))
+            };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_CLMULW => {
             let i = Rtype(inst);
-            let rs1_value = machine.registers()[i.rs1()].to_u32();
-            let rs2_value = machine.registers()[i.rs2()].to_u32();
-            let mut x: u32 = 0;
-            for i in 0..32 {
-                if ((rs2_value >> i) & 1) != 0 {
-                    x ^= rs1_value << i;
-                }
-            }
-            let r = Mac::REG::from_u32(x).sign_extend(&Mac::REG::from_u8(32));
+            let rs1_value = &machine.registers()[i.rs1()];
+            let rs2_value = &machine.registers()[i.rs2()];
+            let value = common::clmul32(rs1_value.to_u32(), rs2_value.to_u32());
+            let r = Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32));
             update_register(machine, i.rd(), r);
             None
         }
@@ -1434,29 +1425,20 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let mut x = Mac::REG::zero();
-            for i in 1..Mac::REG::BITS {
-                let j = Mac::REG::from_u32(i as u32);
-                if ((rs2_value.clone() >> j.clone()) & Mac::REG::one()).to_u64() != 0 {
-                    x = x
-                        ^ (rs1_value.clone()
-                            >> Mac::REG::from_u8(Mac::REG::BITS).overflowing_sub(&j));
-                }
-            }
-            update_register(machine, i.rd(), x);
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::clmulh32(rs1_value.to_u32(), rs2_value.to_u32()))
+            } else {
+                Mac::REG::from_u64(common::clmulh64(rs1_value.to_u64(), rs2_value.to_u64()))
+            };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_CLMULHW => {
             let i = Rtype(inst);
             let rs1_value = machine.registers()[i.rs1()].to_u32();
             let rs2_value = machine.registers()[i.rs2()].to_u32();
-            let mut x: u32 = 0;
-            for i in 1..32 {
-                if ((rs2_value >> i) & 1) != 0 {
-                    x ^= rs1_value >> (32 - i);
-                }
-            }
-            let r = Mac::REG::from_u32(x).sign_extend(&Mac::REG::from_u8(32));
+            let value = common::clmulh32(rs1_value.to_u32(), rs2_value.to_u32());
+            let r = Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32));
             update_register(machine, i.rd(), r);
             None
         }
@@ -1464,31 +1446,20 @@ pub fn execute_instruction<Mac: Machine>(
             let i = Rtype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
-            let mut x = Mac::REG::zero();
-            for i in 0..Mac::REG::BITS {
-                let j = Mac::REG::from_u32(i as u32);
-                if ((rs2_value.clone() >> j.clone()) & Mac::REG::one()).to_u64() != 0 {
-                    x = x
-                        ^ (rs1_value.clone()
-                            >> Mac::REG::from_u8(Mac::REG::BITS)
-                                .overflowing_sub(&j)
-                                .overflowing_sub(&Mac::REG::one()));
-                }
-            }
-            update_register(machine, i.rd(), x);
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::clmulr32(rs1_value.to_u32(), rs2_value.to_u32()))
+            } else {
+                Mac::REG::from_u64(common::clmulr64(rs1_value.to_u64(), rs2_value.to_u64()))
+            };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_CLMULRW => {
             let i = Rtype(inst);
             let rs1_value = machine.registers()[i.rs1()].to_u32();
             let rs2_value = machine.registers()[i.rs2()].to_u32();
-            let mut x: u32 = 0;
-            for i in 0..32 {
-                if ((rs2_value >> i) & 1) != 0 {
-                    x ^= rs1_value >> (31 - i);
-                }
-            }
-            let r = Mac::REG::from_u32(x).sign_extend(&Mac::REG::from_u8(32));
+            let value = common::clmulr32(rs1_value.to_u32(), rs2_value.to_u32());
+            let r = Mac::REG::from_u32(value).sign_extend(&Mac::REG::from_u8(32));
             update_register(machine, i.rd(), r);
             None
         }
@@ -1570,11 +1541,7 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
             let rs3_value = &machine.registers()[i.rs3()];
-            let value = if rs2_value.to_u64() != 0 {
-                rs1_value.clone()
-            } else {
-                rs3_value.clone()
-            };
+            let value = rs2_value.eq(&Mac::REG::zero()).cond(rs3_value, rs1_value);
             update_register(machine, i.rd(), value);
             None
         }
@@ -1812,7 +1779,7 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = Mac::REG::from_u8(i.rs2() as u8);
             let rs1_u = rs1_value.clone().zero_extend(&Mac::REG::from_u8(32));
-            let shamt = rs2_value & Mac::REG::from_u8(Mac::REG::BITS - 1);
+            let shamt = rs2_value & Mac::REG::from_u8(Mac::REG::SHIFT_MASK);
             let value = rs1_u << shamt;
             update_register(machine, i.rd(), value);
             None
