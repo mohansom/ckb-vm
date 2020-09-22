@@ -7,6 +7,9 @@ use std::rc::Rc;
 pub enum ActionOp1 {
     Not,
     LogicalNot,
+    Clz,
+    Ctz,
+    Pcnt,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -20,6 +23,8 @@ pub enum ActionOp2 {
     Bitxor,
     Shl,
     Eq,
+    Rol,
+    Ror,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -261,23 +266,29 @@ impl Register for Value {
     }
 
     fn clz(&self) -> Value {
-        unimplemented!()
+        Value::Op1(ActionOp1::Clz, Rc::new(self.clone()))
     }
 
     fn ctz(&self) -> Value {
-        unimplemented!()
+        Value::Op1(ActionOp1::Ctz, Rc::new(self.clone()))
     }
 
     fn pcnt(&self) -> Value {
-        unimplemented!()
+        Value::Op1(ActionOp1::Pcnt, Rc::new(self.clone()))
     }
 
-    fn rotate_left(&self, _rhs: &Value) -> Value {
-        unimplemented!()
+    fn rol(&self, rhs: &Value) -> Value {
+        if let (Value::Imm(imm1), Value::Imm(imm2)) = (&self, &rhs) {
+            return Value::Imm(imm1.rotate_left(*imm2 as u32));
+        }
+        Value::Op2(ActionOp2::Rol, Rc::new(self.clone()), Rc::new(rhs.clone()))
     }
 
-    fn rotate_right(&self, _rhs: &Value) -> Value {
-        unimplemented!()
+    fn ror(&self, rhs: &Value) -> Value {
+        if let (Value::Imm(imm1), Value::Imm(imm2)) = (&self, &rhs) {
+            return Value::Imm(imm1.rotate_right(*imm2 as u32));
+        }
+        Value::Op2(ActionOp2::Ror, Rc::new(self.clone()), Rc::new(rhs.clone()))
     }
 
     fn signed_shl(&self, rhs: &Value) -> Value {

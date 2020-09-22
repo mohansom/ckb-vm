@@ -1848,6 +1848,67 @@ ckb_vm_x64_execute:
   WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
+.CKB_VM_ASM_LABEL_OP_BFP:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  mov RS2r, TEMP1
+  mov RS2r, TEMP2
+  shr $0x3e, TEMP1
+  shr $0x30, TEMP2
+  cmp $0x2, TEMP1
+  je .bfp_branch1
+  mov RS2r, TEMP2
+  shr $0x20, TEMP2
+.bfp_branch1:
+  mov TEMP2, %rcx
+  shr $0x8, %rcx
+  and $0x1f, %ecx
+  jne .bfp_branch2
+  mov $0x20, %ecx
+.bfp_branch2:
+  and $0x3f, TEMP2d
+  or $0xffffffffffffffff, TEMP3
+  shl %cl, TEMP3
+  mov TEMP2b, %cl
+  shl %cl, RS2r
+  not TEMP3
+  mov RS2r, TEMP1
+  shl %cl, TEMP3
+  xor RS1, TEMP1
+  and TEMP1, TEMP3
+  mov TEMP3, TEMP1
+  xor TEMP1, RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_BFPW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  mov RS2rd, %ecx
+  mov RS2rd, TEMP2d
+  shr $0x18, %ecx
+  shr $0x10, TEMP2d
+  and $0xf, %ecx
+  jne .bfpw_branch1
+  mov $0x10, %ecx
+.bfpw_branch1:
+  and $0x1f, TEMP2d
+  or $0xffffffff, TEMP1d
+  shl %cl, TEMP1d
+  mov TEMP2b, %cl
+  shl %cl, RS2rd
+  not TEMP1d
+  mov RS2rd, TEMP2d
+  shl %cl, TEMP1d
+  xor RS1d, TEMP2d
+  and TEMP2d, TEMP1d
+  mov TEMP1d, TEMP2d
+  xor TEMP2d, RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
 .CKB_VM_ASM_LABEL_OP_BEXT:
   DECODE_R
   movq REGISTER_ADDRESS(RS1), RS1
@@ -2070,6 +2131,158 @@ ckb_vm_x64_execute:
   cmp $0x20, TEMP3d
   jne .clmulrw_branch1
   WRITE_RD(TEMP2)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32B:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32b_branch1:
+  cmp $8, RS2rd
+  jge .crc32b_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0xedb88320, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32b_branch1
+.crc32b_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32H:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32h_branch1:
+  cmp $16, RS2rd
+  jge .crc32h_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0xedb88320, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32h_branch1
+.crc32h_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32W:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32w_branch1:
+  cmp $32, RS2rd
+  jge .crc32w_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0xedb88320, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32w_branch1
+.crc32w_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32D:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32d_branch1:
+  cmp $64, RS2rd
+  jge .crc32d_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0xedb88320, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32d_branch1
+.crc32d_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32CB:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32cb_branch1:
+  cmp $8, RS2rd
+  jge .crc32cb_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0x82f63b78, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32cb_branch1
+.crc32cb_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32CH:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32ch_branch1:
+  cmp $16, RS2rd
+  jge .crc32ch_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0x82f63b78, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32ch_branch1
+.crc32ch_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32CW:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32cw_branch1:
+  cmp $32, RS2rd
+  jge .crc32cw_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0x82f63b78, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32cw_branch1
+.crc32cw_branch2:
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_CRC32CD:
+  DECODE_R
+  movq REGISTER_ADDRESS(RS1), RS1
+  mov $0, RS2rd
+.crc32cd_branch1:
+  cmp $64, RS2rd
+  jge .crc32cd_branch2
+  mov RS1, TEMP1
+  and $1, RS1d
+  neg RS1
+  shr TEMP1
+  and $0x82f63b78, RS1d
+  xor TEMP1, RS1
+  inc RS2rd
+  jmp .crc32cd_branch1
+.crc32cd_branch2:
+  WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_CMIX:
@@ -2375,16 +2588,6 @@ ckb_vm_x64_execute:
 .CKB_VM_ASM_LABEL_OP_GORCI:
 .CKB_VM_ASM_LABEL_OP_GORCW:
 .CKB_VM_ASM_LABEL_OP_GORCIW:
-.CKB_VM_ASM_LABEL_OP_BFP:
-.CKB_VM_ASM_LABEL_OP_BFPW:
-.CKB_VM_ASM_LABEL_OP_CRC32B:
-.CKB_VM_ASM_LABEL_OP_CRC32H:
-.CKB_VM_ASM_LABEL_OP_CRC32W:
-.CKB_VM_ASM_LABEL_OP_CRC32D:
-.CKB_VM_ASM_LABEL_OP_CRC32CB:
-.CKB_VM_ASM_LABEL_OP_CRC32CH:
-.CKB_VM_ASM_LABEL_OP_CRC32CW:
-.CKB_VM_ASM_LABEL_OP_CRC32CD:
 .CKB_VM_ASM_LABEL_OP_BMATFLIP:
 .CKB_VM_ASM_LABEL_OP_BMATOR:
 .CKB_VM_ASM_LABEL_OP_BMATXOR:
