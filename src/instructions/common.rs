@@ -599,6 +599,12 @@ fn shuffle32_stage(src: u32, maskl: u32, maskr: u32, n: u32) -> u32 {
     x
 }
 
+fn shuffle64_stage(src: u64, maskl: u64, maskr: u64, n: u64) -> u64 {
+    let mut x = src & !(maskl | maskr);
+    x |= ((src << n) & maskl) | ((src >> n) & maskr);
+    x
+}
+
 pub fn shfl32(rs1: u32, rs2: u32) -> u32 {
     let mut x = rs1;
     let shamt = rs2 & 15;
@@ -614,30 +620,6 @@ pub fn shfl32(rs1: u32, rs2: u32) -> u32 {
     if (shamt & 1) != 0 {
         x = shuffle32_stage(x, 0x4444_4444, 0x2222_2222, 1);
     }
-    x
-}
-
-pub fn unshfl32(rs1: u32, rs2: u32) -> u32 {
-    let mut x = rs1;
-    let shamt = rs2 & 15;
-    if (shamt & 1) != 0 {
-        x = shuffle32_stage(x, 0x4444_4444, 0x2222_2222, 1);
-    }
-    if (shamt & 2) != 0 {
-        x = shuffle32_stage(x, 0x3030_3030, 0x0C0C_0C0C, 2);
-    }
-    if (shamt & 4) != 0 {
-        x = shuffle32_stage(x, 0x0F00_0F00, 0x00F0_00F0, 4);
-    }
-    if (shamt & 8) != 0 {
-        x = shuffle32_stage(x, 0x00FF_0000, 0x0000_FF00, 8);
-    }
-    x
-}
-
-fn shuffle64_stage(src: u64, maskl: u64, maskr: u64, n: u64) -> u64 {
-    let mut x = src & !(maskl | maskr);
-    x |= ((src << n) & maskl) | ((src >> n) & maskr);
     x
 }
 
@@ -658,6 +640,24 @@ pub fn shfl64(rs1: u64, rs2: u64) -> u64 {
     }
     if (shamt & 0x01) != 0 {
         x = shuffle64_stage(x, 0x4444_4444_4444_4444, 0x2222_2222_2222_2222, 0x01);
+    }
+    x
+}
+
+pub fn unshfl32(rs1: u32, rs2: u32) -> u32 {
+    let mut x = rs1;
+    let shamt = rs2 & 15;
+    if (shamt & 1) != 0 {
+        x = shuffle32_stage(x, 0x4444_4444, 0x2222_2222, 1);
+    }
+    if (shamt & 2) != 0 {
+        x = shuffle32_stage(x, 0x3030_3030, 0x0C0C_0C0C, 2);
+    }
+    if (shamt & 4) != 0 {
+        x = shuffle32_stage(x, 0x0F00_0F00, 0x00F0_00F0, 4);
+    }
+    if (shamt & 8) != 0 {
+        x = shuffle32_stage(x, 0x00FF_0000, 0x0000_FF00, 8);
     }
     x
 }
@@ -683,6 +683,106 @@ pub fn unshfl64(rs1: u64, rs2: u64) -> u64 {
     x
 }
 
+pub fn slo32(rs1: u32, rs2: u32) -> u32 {
+    let shamt = rs2 & 31;
+    !(!rs1 << shamt)
+}
+
+pub fn slo64(rs1: u64, rs2: u64) -> u64 {
+    let shamt = rs2 & 63;
+    !(!rs1 << shamt)
+}
+
+pub fn bfp32(rs1: u32, rs2: u32) -> u32 {
+    let mut cfg: u32 = rs2 >> 16;
+    if (cfg >> 30) == 2 {
+        cfg >>= 16;
+    }
+    let mut len = (cfg >> 8) & 15;
+    let off = cfg & 31;
+    if len == 0 {
+        len = 16
+    }
+    let mask = slo32(0, len) << off;
+    let data = rs2 << off;
+    (data & mask) | (rs1 & !mask)
+}
+
+pub fn bfp64(rs1: u64, rs2: u64) -> u64 {
+    let mut cfg: u64 = rs2 >> 32;
+    if (cfg >> 30) == 2 {
+        cfg >>= 16;
+    }
+    let mut len = (cfg >> 8) & 31;
+    let off = cfg & 63;
+    if len == 0 {
+        len = 32
+    }
+    let mask = slo64(0, len) << off;
+    let data = rs2 << off;
+    (data & mask) | (rs1 & !mask)
+}
+
+pub fn fsl32(rs1: u32, rs2: u32, rs3: u32) -> u32 {
+    let mut shamt = rs2 & 63;
+    let (a, b) = if shamt >= 32 {
+        shamt -= 32;
+        (rs3, rs1)
+    } else {
+        (rs1, rs3)
+    };
+    if shamt != 0 {
+        (a << shamt) | (b >> (32 - shamt))
+    } else {
+        a
+    }
+}
+
+pub fn fsl64(rs1: u64, rs2: u64, rs3: u64) -> u64 {
+    let mut shamt = rs2 & 127;
+    let (a, b) = if shamt >= 64 {
+        shamt -= 64;
+        (rs3, rs1)
+    } else {
+        (rs1, rs3)
+    };
+    if shamt != 0 {
+        (a << shamt) | (b >> (64 - shamt))
+    } else {
+        a
+    }
+}
+
+pub fn fsr32(rs1: u32, rs2: u32, rs3: u32) -> u32 {
+    let mut shamt = rs2 & 63;
+    let (a, b) = if shamt >= 32 {
+        shamt -= 32;
+        (rs3, rs1)
+    } else {
+        (rs1, rs3)
+    };
+    if shamt != 0 {
+        (a >> shamt) | (b << (32 - shamt))
+    } else {
+        a
+    }
+}
+
+pub fn fsr64(rs1: u64, rs2: u64, rs3: u64) -> u64 {
+    let mut shamt = rs2 & 127;
+    let (a, b) = if shamt >= 64 {
+        shamt -= 64;
+        (rs3, rs1)
+    } else {
+        (rs1, rs3)
+    };
+    if shamt != 0 {
+        (a >> shamt) | (b << (64 - shamt))
+    } else {
+        a
+    }
+}
+
 pub fn crc32<Mac: Machine>(machine: &mut Mac, rs1: RegisterIndex, rd: RegisterIndex, nbits: u32) {
     let mut x = machine.registers()[rs1 as usize].clone();
     for _ in 0..nbits {
@@ -701,16 +801,6 @@ pub fn crc32c<Mac: Machine>(machine: &mut Mac, rs1: RegisterIndex, rd: RegisterI
                 & !((x & Mac::REG::from_u32(1)).overflowing_sub(&Mac::REG::from_u32(1))));
     }
     update_register(machine, rd, x);
-}
-
-pub fn slo32(rs1: u32, rs2: u32) -> u32 {
-    let shamt = rs2 & 31;
-    !(!rs1 << shamt)
-}
-
-pub fn slo<Mac: Machine>(rs1: Mac::REG, rs2: Mac::REG) -> Mac::REG {
-    let shamt = rs2 & (Mac::REG::from_u8(Mac::REG::BITS - 1));
-    !(!rs1 << shamt)
 }
 
 pub fn bmatflip(rs1: u64) -> u64 {
