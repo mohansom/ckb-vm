@@ -2,6 +2,7 @@
 pub mod aot;
 #[cfg(has_asm)]
 pub mod asm;
+pub mod pprof;
 pub mod trace;
 
 use super::debugger::Debugger;
