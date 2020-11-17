@@ -723,84 +723,36 @@ pub fn bfp64(rs1: u64, rs2: u64) -> u64 {
     (data & mask) | (rs1 & !mask)
 }
 
-pub fn fsl32(rs1: u32, rs2: u32, rs3: u32) -> u32 {
-    let mut shamt = rs2 & 63;
-    let (a, b) = if shamt >= 32 {
-        shamt -= 32;
-        (rs3, rs1)
-    } else {
-        (rs1, rs3)
-    };
-    if shamt != 0 {
-        (a << shamt) | (b >> (32 - shamt))
-    } else {
-        a
-    }
-}
-
-pub fn fsl64(rs1: u64, rs2: u64, rs3: u64) -> u64 {
-    let mut shamt = rs2 & 127;
-    let (a, b) = if shamt >= 64 {
-        shamt -= 64;
-        (rs3, rs1)
-    } else {
-        (rs1, rs3)
-    };
-    if shamt != 0 {
-        (a << shamt) | (b >> (64 - shamt))
-    } else {
-        a
-    }
-}
-
-pub fn fsr32(rs1: u32, rs2: u32, rs3: u32) -> u32 {
-    let mut shamt = rs2 & 63;
-    let (a, b) = if shamt >= 32 {
-        shamt -= 32;
-        (rs3, rs1)
-    } else {
-        (rs1, rs3)
-    };
-    if shamt != 0 {
-        (a >> shamt) | (b << (32 - shamt))
-    } else {
-        a
-    }
-}
-
-pub fn fsr64(rs1: u64, rs2: u64, rs3: u64) -> u64 {
-    let mut shamt = rs2 & 127;
-    let (a, b) = if shamt >= 64 {
-        shamt -= 64;
-        (rs3, rs1)
-    } else {
-        (rs1, rs3)
-    };
-    if shamt != 0 {
-        (a >> shamt) | (b << (64 - shamt))
-    } else {
-        a
-    }
-}
-
-pub fn crc32<Mac: Machine>(machine: &mut Mac, rs1: RegisterIndex, rd: RegisterIndex, nbits: u32) {
-    let mut x = machine.registers()[rs1 as usize].clone();
+pub fn crc3232(x: u32, nbits: u32) -> u32 {
+    let mut r = x;
     for _ in 0..nbits {
-        x = (x.clone() >> Mac::REG::from_u32(1))
-            ^ (Mac::REG::from_u32(0xEDB8_8320)
-                & !((x & Mac::REG::from_u32(1)).overflowing_sub(&Mac::REG::from_u32(1))));
+        r = (r >> 1) ^ (0xEDB8_8320 & !((r & 1).overflowing_sub(1).0));
     }
-    update_register(machine, rd, x);
+    r
 }
 
-pub fn crc32c<Mac: Machine>(machine: &mut Mac, rs1: RegisterIndex, rd: RegisterIndex, nbits: u32) {
-    let mut x = machine.registers()[rs1 as usize].clone();
+pub fn crc3264(x: u64, nbits: u64) -> u64 {
+    let mut r = x;
     for _ in 0..nbits {
-        x = (x.clone() >> Mac::REG::from_u32(1))
-            ^ (Mac::REG::from_u32(0x82F6_3B78)
-                & !((x & Mac::REG::from_u32(1)).overflowing_sub(&Mac::REG::from_u32(1))));
+        r = (r >> 1) ^ (0xEDB8_8320 & !((r & 1).overflowing_sub(1).0));
     }
-    update_register(machine, rd, x);
+    r
+}
+
+pub fn crc32c32(x: u32, nbits: u32) -> u32 {
+    let mut r = x;
+    for _ in 0..nbits {
+        r = (r >> 1) ^ (0x82F6_3B78 & !((r & 1).overflowing_sub(1).0));
+    }
+    r
+}
+
+pub fn crc32c64(x: u64, nbits: u64) -> u64 {
+    let mut r = x;
+    for _ in 0..nbits {
+        r = (r >> 1) ^ (0x82F6_3B78 & !((r & 1).overflowing_sub(1).0));
+    }
+    r
 }
 
 pub fn bmatflip(rs1: u64) -> u64 {

@@ -69,6 +69,8 @@ pub trait Register:
 
     fn rol(&self, rhs: &Self) -> Self;
     fn ror(&self, rhs: &Self) -> Self;
+    fn fsl(&self, rhs: &Self, shift: &Self) -> Self;
+    fn fsr(&self, rhs: &Self, shift: &Self) -> Self;
 
     // Zero extend from start_bit to the highest bit, note
     // start_bit is offset by 0
@@ -274,6 +276,36 @@ impl Register for u32 {
 
     fn ror(&self, rhs: &u32) -> u32 {
         (*self as u32).rotate_right(*rhs) as u32
+    }
+
+    fn fsl(&self, rhs: &u32, shift: &u32) -> u32 {
+        let mut shamt = shift & 63;
+        let (a, b) = if shamt >= 32 {
+            shamt -= 32;
+            (rhs, self)
+        } else {
+            (self, rhs)
+        };
+        if shamt != 0 {
+            (a << shamt) | (b >> (32 - shamt))
+        } else {
+            *a
+        }
+    }
+
+    fn fsr(&self, rhs: &u32, shift: &u32) -> u32 {
+        let mut shamt = shift & 63;
+        let (a, b) = if shamt >= 32 {
+            shamt -= 32;
+            (rhs, self)
+        } else {
+            (self, rhs)
+        };
+        if shamt != 0 {
+            (a >> shamt) | (b << (32 - shamt))
+        } else {
+            *a
+        }
     }
 
     fn to_i8(&self) -> i8 {
@@ -499,6 +531,36 @@ impl Register for u64 {
 
     fn ror(&self, rhs: &Self) -> u64 {
         (*self as u64).rotate_right((*rhs) as u32) as u64
+    }
+
+    fn fsl(&self, rhs: &Self, shift: &Self) -> u64 {
+        let mut shamt = shift & 127;
+        let (a, b) = if shamt >= 64 {
+            shamt -= 64;
+            (rhs, self)
+        } else {
+            (self, rhs)
+        };
+        if shamt != 0 {
+            (a << shamt) | (b >> (64 - shamt))
+        } else {
+            *a
+        }
+    }
+
+    fn fsr(&self, rhs: &Self, shift: &Self) -> u64 {
+        let mut shamt = shift & 127;
+        let (a, b) = if shamt >= 64 {
+            shamt -= 64;
+            (rhs, self)
+        } else {
+            (self, rhs)
+        };
+        if shamt != 0 {
+            (a >> shamt) | (b << (64 - shamt))
+        } else {
+            *a
+        }
     }
 
     fn to_i8(&self) -> i8 {

@@ -88,6 +88,7 @@
 #define TEMP1 %rdi
 #define TEMP2 %r10
 #define TEMP3 %r11
+#define FLAG TEMP3
 
 #define RDd_RS2sd %eax
 #define RDd RDd_RS2sd
@@ -120,6 +121,9 @@
 
 #define REGISTER_ADDRESS(r) \
   CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_REGISTERS(MACHINE, r, 8)
+
+#define VERSION_ADDRESS \
+  CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_VERSION(MACHINE)
 
 /*
  * Those macros provide slight abstractions over register allocations,
@@ -267,7 +271,9 @@
   movq (INST_ARGS), %rcx; \
   addq $8, INST_ARGS; \
   movzbl %ch, RDd_RS2sd; \
-  sar $32, %rcx; \
+  sar $24, %rcx; \
+  movzx %cl, FLAG; \
+  sar $8, %rcx; \
   movq (INST_PC), TEMP1; \
   addq $8, INST_PC; \
   jmp *TEMP1
@@ -332,7 +338,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_ADDI:
-.CKB_VM_ASM_LABEL_OP_RVC_ADDI:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), RS1
   addq IMMEDIATE, RS1
@@ -340,7 +345,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_ADD:
-.CKB_VM_ASM_LABEL_OP_RVC_ADD:
   DECODE_R
   movq REGISTER_ADDRESS(RS1), RS1
   addq REGISTER_ADDRESS(RS2r), RS1
@@ -348,7 +352,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_ADDIW:
-.CKB_VM_ASM_LABEL_OP_RVC_ADDIW:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), RS1
   addq IMMEDIATE, RS1
@@ -357,7 +360,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_ADDW:
-.CKB_VM_ASM_LABEL_OP_RVC_ADDW:
   DECODE_R
   movq REGISTER_ADDRESS(RS1), RS1
   addq REGISTER_ADDRESS(RS2r), RS1
@@ -366,7 +368,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_AND:
-.CKB_VM_ASM_LABEL_OP_RVC_AND:
   DECODE_R
   movq REGISTER_ADDRESS(RS1), RS1
   andq REGISTER_ADDRESS(RS2r), RS1
@@ -374,7 +375,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_ANDI:
-.CKB_VM_ASM_LABEL_OP_RVC_ANDI:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), RS1
   andq IMMEDIATE, RS1
@@ -438,7 +438,14 @@ ckb_vm_x64_execute:
   NEXT_INST
 .i_branch_success:
   movq PC_ADDRESS, RS1
+  and $1, FLAG
+  cmp $0, FLAG
+  jnz .i_branch_success_branch1
   subq $4, RS1
+  jmp .i_branch_success_branch2
+.i_branch_success_branch1:
+  subq $2, RS1
+.i_branch_success_branch2:
   addq IMMEDIATE, RS1
   movq RS1, PC_ADDRESS
   jmp .prepare_trace
@@ -551,10 +558,6 @@ ckb_vm_x64_execute:
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_FENCE:
 .CKB_VM_ASM_LABEL_OP_FENCEI:
-.CKB_VM_ASM_LABEL_OP_RVC_NOP:
-.CKB_VM_ASM_LABEL_OP_RVC_SLLI64:
-.CKB_VM_ASM_LABEL_OP_RVC_SRAI64:
-.CKB_VM_ASM_LABEL_OP_RVC_SRLI64:
   DECODE_U
   NEXT_INST
 .p2align 3
@@ -562,12 +565,25 @@ ckb_vm_x64_execute:
   DECODE_U
   movq PC_ADDRESS, RS1
   WRITE_RD(RS1)
+  and $1, FLAG
+  cmp $0, FLAG
+  jnz .jal_branch1
   subq $4, RS1
+  jmp .jal_branch2
+.jal_branch1:
+  subq $2, RS1
+.jal_branch2:
   addq IMMEDIATE, RS1
   movq RS1, PC_ADDRESS
   jmp .prepare_trace
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_JALR:
+  mov VERSION_ADDRESS, TEMP1d
+  cmp $1, TEMP1d
+  jge .CKB_VM_ASM_LABEL_OP_JALR_VERSION1
+  jmp .CKB_VM_ASM_LABEL_OP_JALR_VERSION0
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_JALR_VERSION0:
   DECODE_I
   movq PC_ADDRESS, TEMP1
   WRITE_RD(TEMP1)
@@ -576,8 +592,25 @@ ckb_vm_x64_execute:
   andq $-2, TEMP1
   movq TEMP1, PC_ADDRESS
   jmp .prepare_trace
+/* RS2r is used as a temporary register here */
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_JALR_VERSION1:
+  DECODE_I
+  movq REGISTER_ADDRESS(RS1), RS2r
+  movq PC_ADDRESS, TEMP1
+  WRITE_RD(TEMP1)
+  addq IMMEDIATE, RS2r
+  andq $-2, RS2r
+  movq RS2r, PC_ADDRESS
+  jmp .prepare_trace
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_LB:
+  mov VERSION_ADDRESS, TEMP1d
+  cmp $1, TEMP1d
+  jge .CKB_VM_ASM_LABEL_OP_LB_VERSION1
+  jmp .CKB_VM_ASM_LABEL_OP_LB_VERSION0
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_LB_VERSION0:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), RS1
   addq IMMEDIATE, RS1
@@ -592,7 +625,21 @@ ckb_vm_x64_execute:
   WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
+.CKB_VM_ASM_LABEL_OP_LB_VERSION1:
+  DECODE_I
+  CHECK_READ_BOUND_VERSION1($1)
+  CHECK_READ(RS1, 1)
+  movsbq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
 .CKB_VM_ASM_LABEL_OP_LBU:
+  mov VERSION_ADDRESS, TEMP1d
+  cmp $1, TEMP1d
+  jge .CKB_VM_ASM_LABEL_OP_LBU_VERSION1
+  jmp .CKB_VM_ASM_LABEL_OP_LBU_VERSION0
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_LBU_VERSION0:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), RS1
   addq IMMEDIATE, RS1
@@ -607,8 +654,21 @@ ckb_vm_x64_execute:
   WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
+.CKB_VM_ASM_LABEL_OP_LBU_VERSION1:
+  DECODE_I
+  CHECK_READ_BOUND_VERSION1($1)
+  CHECK_READ(RS1, 1)
+  movzbq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
 .CKB_VM_ASM_LABEL_OP_LD:
-.CKB_VM_ASM_LABEL_OP_RVC_LD:
+  mov VERSION_ADDRESS, TEMP1d
+  cmp $1, TEMP1d
+  jge .CKB_VM_ASM_LABEL_OP_LD_VERSION1
+  jmp .CKB_VM_ASM_LABEL_OP_LD_VERSION0
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_LD_VERSION0:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), RS1
   addq IMMEDIATE, RS1
@@ -623,7 +683,21 @@ ckb_vm_x64_execute:
   WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
+.CKB_VM_ASM_LABEL_OP_LD_VERSION1:
+  DECODE_I
+  CHECK_READ_BOUND_VERSION1($8)
+  CHECK_READ(RS1, 1)
+  movq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
 .CKB_VM_ASM_LABEL_OP_LH:
+    mov VERSION_ADDRESS, TEMP1d
+    cmp $1, TEMP1d
+    jge .CKB_VM_ASM_LABEL_OP_LH_VERSION1
+    jmp .CKB_VM_ASM_LABEL_OP_LH_VERSION0
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_LH_VERSION0:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), RS1
   addq IMMEDIATE, RS1
@@ -638,7 +712,21 @@ ckb_vm_x64_execute:
   WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
+.CKB_VM_ASM_LABEL_OP_LH_VERSION1:
+  DECODE_I
+  CHECK_READ_BOUND_VERSION1($2)
+  CHECK_READ(RS1, 1)
+  movswq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
 .CKB_VM_ASM_LABEL_OP_LHU:
+  mov VERSION_ADDRESS, TEMP1d
+  cmp $1, TEMP1d
+  jge .CKB_VM_ASM_LABEL_OP_LHU_VERSION1
+  jmp .CKB_VM_ASM_LABEL_OP_LHU_VERSION0
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_LHU_VERSION0:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), RS1
   addq IMMEDIATE, RS1
@@ -653,16 +741,27 @@ ckb_vm_x64_execute:
   WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
+.CKB_VM_ASM_LABEL_OP_LHU_VERSION1:
+  DECODE_I
+  CHECK_READ_BOUND_VERSION1($2)
+  CHECK_READ(RS1, 1)
+  movzwq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
 .CKB_VM_ASM_LABEL_OP_LUI:
-.CKB_VM_ASM_LABEL_OP_RVC_LI:
-.CKB_VM_ASM_LABEL_OP_RVC_LUI:
 .CKB_VM_ASM_LABEL_OP_CUSTOM_LOAD_IMM:
   DECODE_U
   WRITE_RD(IMMEDIATE)
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_LW:
-.CKB_VM_ASM_LABEL_OP_RVC_LW:
+  mov VERSION_ADDRESS, TEMP1d
+  cmp $1, TEMP1d
+  jge .CKB_VM_ASM_LABEL_OP_LW_VERSION1
+  jmp .CKB_VM_ASM_LABEL_OP_LW_VERSION0
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_LW_VERSION0:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), RS1
   addq IMMEDIATE, RS1
@@ -677,7 +776,21 @@ ckb_vm_x64_execute:
   WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
+.CKB_VM_ASM_LABEL_OP_LW_VERSION1:
+  DECODE_I
+  CHECK_READ_BOUND_VERSION1($4)
+  CHECK_READ(RS1, 1)
+  movslq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
 .CKB_VM_ASM_LABEL_OP_LWU:
+  mov VERSION_ADDRESS, TEMP1d
+  cmp $1, TEMP1d
+  jge .CKB_VM_ASM_LABEL_OP_LWU_VERSION1
+  jmp .CKB_VM_ASM_LABEL_OP_LWU_VERSION0
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_LWU_VERSION0:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), RS1
   addq IMMEDIATE, RS1
@@ -688,6 +801,14 @@ ckb_vm_x64_execute:
   cmp $CKB_VM_ASM_RISCV_MAX_MEMORY, TEMP1
   jae .exit_out_of_bound
   CHECK_READ(RS1, 4)
+  mov CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1d
+  WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_LWU_VERSION1:
+  DECODE_I
+  CHECK_READ_BOUND_VERSION1($4)
+  CHECK_READ(RS1, 1)
   mov CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1d
   WRITE_RD(RS1)
   NEXT_INST
@@ -768,7 +889,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_OR:
-.CKB_VM_ASM_LABEL_OP_RVC_OR:
   DECODE_R
   movq REGISTER_ADDRESS(RS1), RS1
   orq REGISTER_ADDRESS(RS2r), RS1
@@ -891,7 +1011,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_SD:
-.CKB_VM_ASM_LABEL_OP_RVC_SD:
   DECODE_S
   movq REGISTER_ADDRESS(RS1), RS1
   addq IMMEDIATE, RS1
@@ -918,7 +1037,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_SLLI:
-.CKB_VM_ASM_LABEL_OP_RVC_SLLI:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), TEMP1
   movq IMMEDIATE, %rcx
@@ -992,7 +1110,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_SRAI:
-.CKB_VM_ASM_LABEL_OP_RVC_SRAI:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), TEMP1
   movq IMMEDIATE, %rcx
@@ -1028,7 +1145,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_SRLI:
-.CKB_VM_ASM_LABEL_OP_RVC_SRLI:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), TEMP1
   movq IMMEDIATE, %rcx
@@ -1056,7 +1172,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_SUB:
-.CKB_VM_ASM_LABEL_OP_RVC_SUB:
   DECODE_R
   movq REGISTER_ADDRESS(RS1), RS1
   subq REGISTER_ADDRESS(RS2r), RS1
@@ -1064,7 +1179,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_SUBW:
-.CKB_VM_ASM_LABEL_OP_RVC_SUBW:
   DECODE_R
   movq REGISTER_ADDRESS(RS1), RS1
   subq REGISTER_ADDRESS(RS2r), RS1
@@ -1073,7 +1187,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_SW:
-.CKB_VM_ASM_LABEL_OP_RVC_SW:
   DECODE_S
   movq REGISTER_ADDRESS(RS1), RS1
   addq IMMEDIATE, RS1
@@ -1083,7 +1196,6 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_XOR:
-.CKB_VM_ASM_LABEL_OP_RVC_XOR:
   DECODE_R
   movq REGISTER_ADDRESS(RS1), RS1
   xorq REGISTER_ADDRESS(RS2r), RS1
@@ -1094,235 +1206,6 @@ ckb_vm_x64_execute:
   DECODE_I
   movq REGISTER_ADDRESS(RS1), RS1
   xorq IMMEDIATE, RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_ADDI16SP:
-  DECODE_I
-  addq IMMEDIATE, SP_ADDRESS
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_ADDI4SPN:
-  DECODE_U
-  movq SP_ADDRESS, RS1
-  addq IMMEDIATE, RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_BEQZ:
-  DECODE_S
-  movq REGISTER_ADDRESS(RS1), RS1
-  cmpq $0, RS1
-  je .rvc_branch_success
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_BNEZ:
-  DECODE_S
-  movq REGISTER_ADDRESS(RS1), RS1
-  cmpq $0, RS1
-  jne .rvc_branch_success
-  NEXT_INST
-.rvc_branch_success:
-  movq PC_ADDRESS, RS1
-  subq $2, RS1
-  addq IMMEDIATE, RS1
-  movq RS1, PC_ADDRESS
-  jmp .prepare_trace
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_EBREAK:
-  DECODE_U
-  mov $CKB_VM_ASM_RET_EBREAK, ARG_RETd
-  jmp .exit
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_J:
-  DECODE_U
-  movq PC_ADDRESS, RS1
-  subq $2, RS1
-  addq IMMEDIATE, RS1
-  movq RS1, PC_ADDRESS
-  jmp .prepare_trace
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_JAL:
-  DECODE_U
-  movq PC_ADDRESS, RS1
-  movq RS1, (CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_REGISTERS + 1 * 8)(MACHINE)
-  subq $2, RS1
-  addq IMMEDIATE, RS1
-  movq RS1, PC_ADDRESS
-  jmp .prepare_trace
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_JALR:
-  DECODE_S
-  movq PC_ADDRESS, %rcx
-  movq %rcx, (CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_REGISTERS + 1 * 8)(MACHINE)
-  movq REGISTER_ADDRESS(RS1), %rcx
-  andq $-2, %rcx
-  movq %rcx, PC_ADDRESS
-  jmp .prepare_trace
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_JR:
-  DECODE_S
-  movq REGISTER_ADDRESS(RS1), %rcx
-  andq $-2, %rcx
-  movq %rcx, PC_ADDRESS
-  jmp .prepare_trace
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_LDSP:
-  DECODE_U
-  movq SP_ADDRESS, RS1
-  addq IMMEDIATE, RS1
-  movq RS1, TEMP1
-  cmp $CKB_VM_ASM_RISCV_MAX_MEMORY, TEMP1
-  jae .exit_out_of_bound
-  addq $8, TEMP1
-  cmp $CKB_VM_ASM_RISCV_MAX_MEMORY, TEMP1
-  jae .exit_out_of_bound
-  movq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_LWSP:
-  DECODE_U
-  movq SP_ADDRESS, RS1
-  addq IMMEDIATE, RS1
-  movq RS1, TEMP1
-  cmp $CKB_VM_ASM_RISCV_MAX_MEMORY, TEMP1
-  jae .exit_out_of_bound
-  addq $4, TEMP1
-  cmp $CKB_VM_ASM_RISCV_MAX_MEMORY, TEMP1
-  jae .exit_out_of_bound
-  movslq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_MV:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS2r), RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_SDSP:
-  DECODE_S
-  movq SP_ADDRESS, RS1
-  addq IMMEDIATE, RS1
-  CHECK_WRITE(RS1, RS2rd, 8)
-  movq REGISTER_ADDRESS(RS2s), RS2s
-  movq RS2s, CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_RVC_SWSP:
-  DECODE_S
-  movq SP_ADDRESS, RS1
-  addq IMMEDIATE, RS1
-  CHECK_WRITE(RS1, RS2rd, 4)
-  movq REGISTER_ADDRESS(RS2s), RS2s
-  mov RS2sd, CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1)
-  NEXT_INST
-/* RS2r is used as a temporary register here */
-.CKB_VM_ASM_LABEL_OP_VERSION1_JALR:
-  DECODE_I
-  movq REGISTER_ADDRESS(RS1), RS2r
-  movq PC_ADDRESS, TEMP1
-  WRITE_RD(TEMP1)
-  addq IMMEDIATE, RS2r
-  andq $-2, RS2r
-  movq RS2r, PC_ADDRESS
-  jmp .prepare_trace
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_VERSION1_RVC_JALR:
-  DECODE_S
-  movq REGISTER_ADDRESS(RS1), TEMP1
-  movq PC_ADDRESS, %rcx
-  movq %rcx, (CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_REGISTERS + 1 * 8)(MACHINE)
-  andq $-2, TEMP1
-  movq TEMP1, PC_ADDRESS
-  jmp .prepare_trace
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_VERSION1_LB:
-  DECODE_I
-  CHECK_READ_BOUND_VERSION1($1)
-  CHECK_READ(RS1, 1)
-  movsbq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_VERSION1_LBU:
-  DECODE_I
-  CHECK_READ_BOUND_VERSION1($1)
-  CHECK_READ(RS1, 1)
-  movzbq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_VERSION1_LD:
-.CKB_VM_ASM_LABEL_OP_VERSION1_RVC_LD:
-  DECODE_I
-  CHECK_READ_BOUND_VERSION1($8)
-  CHECK_READ(RS1, 1)
-  movq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_VERSION1_LH:
-  DECODE_I
-  CHECK_READ_BOUND_VERSION1($2)
-  CHECK_READ(RS1, 1)
-  movswq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_VERSION1_LHU:
-  DECODE_I
-  CHECK_READ_BOUND_VERSION1($2)
-  CHECK_READ(RS1, 1)
-  movzwq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_VERSION1_LW:
-.CKB_VM_ASM_LABEL_OP_VERSION1_RVC_LW:
-  DECODE_I
-  CHECK_READ_BOUND_VERSION1($4)
-  CHECK_READ(RS1, 1)
-  movslq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_VERSION1_LWU:
-  DECODE_I
-  CHECK_READ_BOUND_VERSION1($4)
-  CHECK_READ(RS1, 1)
-  mov CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1d
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_VERSION1_RVC_LDSP:
-  DECODE_U
-  movq SP_ADDRESS, RS1
-  addq IMMEDIATE, RS1
-  movq RS1, TEMP1
-  cmp $CKB_VM_ASM_RISCV_MAX_MEMORY, TEMP1
-  jae .exit_out_of_bound
-  addq $8, TEMP1
-  cmp $CKB_VM_ASM_RISCV_MAX_MEMORY, TEMP1
-  ja .exit_out_of_bound
-  CHECK_READ(RS1, 1)
-  movq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_VERSION1_RVC_LWSP:
-  DECODE_U
-  movq SP_ADDRESS, RS1
-  addq IMMEDIATE, RS1
-  movq RS1, TEMP1
-  cmp $CKB_VM_ASM_RISCV_MAX_MEMORY, TEMP1
-  jae .exit_out_of_bound
-  addq $4, TEMP1
-  cmp $CKB_VM_ASM_RISCV_MAX_MEMORY, TEMP1
-  ja .exit_out_of_bound
-  CHECK_READ(RS1, 1)
-  movslq CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY(MACHINE, RS1), RS1
   WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
@@ -1814,443 +1697,6 @@ ckb_vm_x64_execute:
   WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
-.CKB_VM_ASM_LABEL_OP_BFP:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  mov RS2r, TEMP1
-  mov RS2r, TEMP2
-  shr $0x3e, TEMP1
-  shr $0x30, TEMP2
-  cmp $0x2, TEMP1
-  je .bfp_branch1
-  mov RS2r, TEMP2
-  shr $0x20, TEMP2
-.bfp_branch1:
-  mov TEMP2, %rcx
-  shr $0x8, %rcx
-  and $0x1f, %ecx
-  jne .bfp_branch2
-  mov $0x20, %ecx
-.bfp_branch2:
-  and $0x3f, TEMP2d
-  or $0xffffffffffffffff, TEMP3
-  shl %cl, TEMP3
-  mov TEMP2b, %cl
-  shl %cl, RS2r
-  not TEMP3
-  mov RS2r, TEMP1
-  shl %cl, TEMP3
-  xor RS1, TEMP1
-  and TEMP1, TEMP3
-  mov TEMP3, TEMP1
-  xor TEMP1, RS1
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_BFPW:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  mov RS2rd, %ecx
-  mov RS2rd, TEMP2d
-  shr $0x18, %ecx
-  shr $0x10, TEMP2d
-  and $0xf, %ecx
-  jne .bfpw_branch1
-  mov $0x10, %ecx
-.bfpw_branch1:
-  and $0x1f, TEMP2d
-  or $0xffffffff, TEMP1d
-  shl %cl, TEMP1d
-  mov TEMP2b, %cl
-  shl %cl, RS2rd
-  not TEMP1d
-  mov RS2rd, TEMP2d
-  shl %cl, TEMP1d
-  xor RS1d, TEMP2d
-  and TEMP2d, TEMP1d
-  mov TEMP1d, TEMP2d
-  xor TEMP2d, RS1d
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_BEXT:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  xor %ecx, %ecx
-  xor TEMP1d, TEMP1d
-  xor TEMP2d, TEMP2d
-.bexp_branch1:
-  bt TEMP1, RS2r
-  jae .bexp_branch3
-  bt TEMP1, RS1
-  jae .bexp_branch2
-  mov $1, TEMP3
-  shl %cl, TEMP3
-  or TEMP3, TEMP2
-.bexp_branch2:
-  inc %ecx
-.bexp_branch3:
-  inc TEMP1d
-  cmp $0x40, TEMP1d
-  jne .bexp_branch1
-  WRITE_RD(TEMP2)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_BEXTW:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  xor %ecx, %ecx
-  xor TEMP1d, TEMP1d
-  xor TEMP2d, TEMP2d
-.bextw_branch1:
-  bt TEMP1d, RS2rd
-  jae .bextw_branch3
-  bt TEMP1d, RS1d
-  jae .bextw_branch2
-  mov $1, TEMP3d
-  shl %cl, TEMP3d
-  or TEMP3d, TEMP2d
-.bextw_branch2:
-  inc %ecx
-.bextw_branch3:
-  inc TEMP1d
-  cmp $0x20, TEMP1d
-  jne .bextw_branch1
-  WRITE_RD(TEMP2)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_BDEP:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  xor TEMP1d, TEMP1d
-  xor %ecx, %ecx
-  xor TEMP2d, TEMP2d
-.bdep_branch1:
-  bt %rcx, RS2r
-  jae .bdep_branch3
-  bt TEMP1, RS1
-  jae .bdep_branch2
-  mov $1, TEMP3
-  shl %cl, TEMP3
-  or TEMP3, TEMP2
-.bdep_branch2:
-  inc TEMP1d
-.bdep_branch3:
-  inc %ecx
-  cmp $0x40, %ecx
-  jne .bdep_branch1
-  WRITE_RD(TEMP2)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_BDEPW:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  xor TEMP1d, TEMP1d
-  xor %ecx, %ecx
-  xor TEMP2d, TEMP2d
-.bdepw_branch1:
-  bt %ecx, RS2rd
-  jae .bdepw_branch3
-  bt TEMP1d, RS1d
-  jae .bdepw_branch2
-  mov $1, TEMP3d
-  shl %cl, TEMP3d
-  or TEMP3d, TEMP2d
-.bdepw_branch2:
-  inc TEMP1d
-.bdepw_branch3:
-  inc %ecx
-  cmp $0x20, %ecx
-  jne .bdepw_branch1
-  WRITE_RD(TEMP2)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CLMUL:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  xor TEMP3d, TEMP3d
-  xor TEMP2, TEMP2
-.clmul_branch1:
-  bt TEMP3, RS2r
-  jae .clmul_branch2
-  mov RS1, TEMP1
-  movb TEMP3b, %cl
-  shl %cl, TEMP1
-  xor TEMP1, TEMP2
-.clmul_branch2:
-  inc TEMP3d
-  cmp $0x40, TEMP3d
-  jne .clmul_branch1
-  WRITE_RD(TEMP2)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CLMULW:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  xor TEMP3d, TEMP3d
-  xor TEMP2d, TEMP2d
-.clmulw_branch1:
-  bt TEMP3d, RS2rd
-  jae .clmulw_branch2
-  mov RS1d, TEMP1d
-  movb TEMP3b, %cl
-  shl %cl, TEMP1d
-  xor TEMP1d, TEMP2d
-.clmulw_branch2:
-  inc TEMP3d
-  cmp $0x20, TEMP3d
-  jne .clmulw_branch1
-  WRITE_RD(TEMP2)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CLMULH:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  movq $1, TEMP3
-  xor TEMP2, TEMP2
-.clmulh_branch1:
-  bt TEMP3, RS2r
-  jae .clmulh_branch2
-  mov RS1, TEMP1
-  movb TEMP3b, %cl
-  neg %cl
-  add $64, %cl
-  shr %cl, TEMP1
-  xor TEMP1, TEMP2
-.clmulh_branch2:
-  inc TEMP3d
-  cmp $0x40, TEMP3d
-  jne .clmulh_branch1
-  WRITE_RD(TEMP2)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CLMULHW:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  movq $1, TEMP3
-  xor TEMP2d, TEMP2d
-.clmulhw_branch1:
-  bt TEMP3d, RS2rd
-  jae .clmulhw_branch2
-  mov RS1d, TEMP1d
-  movb TEMP3b, %cl
-  neg %cl
-  add $32, %cl
-  shr %cl, TEMP1d
-  xor TEMP1d, TEMP2d
-.clmulhw_branch2:
-  inc TEMP3d
-  cmp $0x20, TEMP3d
-  jne .clmulhw_branch1
-  WRITE_RD(TEMP2)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CLMULR:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  xor TEMP3, TEMP3
-  xor TEMP2, TEMP2
-.clmulr_branch1:
-  bt TEMP3, RS2r
-  jae .clmulr_branch2
-  mov RS1, TEMP1
-  movb TEMP3b, %cl
-  neg %cl
-  add $63, %cl
-  shr %cl, TEMP1
-  xor TEMP1, TEMP2
-.clmulr_branch2:
-  inc TEMP3d
-  cmp $0x40, TEMP3d
-  jne .clmulr_branch1
-  WRITE_RD(TEMP2)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CLMULRW:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  movq REGISTER_ADDRESS(RS2r), RS2r
-  xor TEMP3d, TEMP3d
-  xor TEMP2d, TEMP2d
-.clmulrw_branch1:
-  bt TEMP3d, RS2rd
-  jae .clmulrw_branch2
-  mov RS1d, TEMP1d
-  movb TEMP3b, %cl
-  neg %cl
-  add $31, %cl
-  shr %cl, TEMP1d
-  xor TEMP1d, TEMP2d
-.clmulrw_branch2:
-  inc TEMP3d
-  cmp $0x20, TEMP3d
-  jne .clmulrw_branch1
-  WRITE_RD(TEMP2)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CRC32B:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  mov $0, RS2rd
-.crc32b_branch1:
-  cmp $8, RS2rd
-  jge .crc32b_branch2
-  mov RS1, TEMP1
-  and $1, RS1d
-  neg RS1
-  shr TEMP1
-  and $0xedb88320, RS1d
-  xor TEMP1, RS1
-  inc RS2rd
-  jmp .crc32b_branch1
-.crc32b_branch2:
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CRC32H:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  mov $0, RS2rd
-.crc32h_branch1:
-  cmp $16, RS2rd
-  jge .crc32h_branch2
-  mov RS1, TEMP1
-  and $1, RS1d
-  neg RS1
-  shr TEMP1
-  and $0xedb88320, RS1d
-  xor TEMP1, RS1
-  inc RS2rd
-  jmp .crc32h_branch1
-.crc32h_branch2:
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CRC32W:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  mov $0, RS2rd
-.crc32w_branch1:
-  cmp $32, RS2rd
-  jge .crc32w_branch2
-  mov RS1, TEMP1
-  and $1, RS1d
-  neg RS1
-  shr TEMP1
-  and $0xedb88320, RS1d
-  xor TEMP1, RS1
-  inc RS2rd
-  jmp .crc32w_branch1
-.crc32w_branch2:
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CRC32D:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  mov $0, RS2rd
-.crc32d_branch1:
-  cmp $64, RS2rd
-  jge .crc32d_branch2
-  mov RS1, TEMP1
-  and $1, RS1d
-  neg RS1
-  shr TEMP1
-  and $0xedb88320, RS1d
-  xor TEMP1, RS1
-  inc RS2rd
-  jmp .crc32d_branch1
-.crc32d_branch2:
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CRC32CB:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  mov $0, RS2rd
-.crc32cb_branch1:
-  cmp $8, RS2rd
-  jge .crc32cb_branch2
-  mov RS1, TEMP1
-  and $1, RS1d
-  neg RS1
-  shr TEMP1
-  and $0x82f63b78, RS1d
-  xor TEMP1, RS1
-  inc RS2rd
-  jmp .crc32cb_branch1
-.crc32cb_branch2:
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CRC32CH:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  mov $0, RS2rd
-.crc32ch_branch1:
-  cmp $16, RS2rd
-  jge .crc32ch_branch2
-  mov RS1, TEMP1
-  and $1, RS1d
-  neg RS1
-  shr TEMP1
-  and $0x82f63b78, RS1d
-  xor TEMP1, RS1
-  inc RS2rd
-  jmp .crc32ch_branch1
-.crc32ch_branch2:
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CRC32CW:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  mov $0, RS2rd
-.crc32cw_branch1:
-  cmp $32, RS2rd
-  jge .crc32cw_branch2
-  mov RS1, TEMP1
-  and $1, RS1d
-  neg RS1
-  shr TEMP1
-  and $0x82f63b78, RS1d
-  xor TEMP1, RS1
-  inc RS2rd
-  jmp .crc32cw_branch1
-.crc32cw_branch2:
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_CRC32CD:
-  DECODE_R
-  movq REGISTER_ADDRESS(RS1), RS1
-  mov $0, RS2rd
-.crc32cd_branch1:
-  cmp $64, RS2rd
-  jge .crc32cd_branch2
-  mov RS1, TEMP1
-  and $1, RS1d
-  neg RS1
-  shr TEMP1
-  and $0x82f63b78, RS1d
-  xor TEMP1, RS1
-  inc RS2rd
-  jmp .crc32cd_branch1
-.crc32cd_branch2:
-  WRITE_RD(RS1)
-  NEXT_INST
-.p2align 3
 .CKB_VM_ASM_LABEL_OP_CMIX:
   DECODE_R4
   movq REGISTER_ADDRESS(RS1), RS1
@@ -2535,30 +1981,6 @@ ckb_vm_x64_execute:
   subq RS2r, RS1
   WRITE_RD(RS1)
   NEXT_INST
-/*
- * Some instructions that are difficult to implement will be interpreted and
- * executed by the rust interpreter
- */
-.p2align 3
-.CKB_VM_ASM_LABEL_OP_GREV:
-.CKB_VM_ASM_LABEL_OP_GREVI:
-.CKB_VM_ASM_LABEL_OP_GREVW:
-.CKB_VM_ASM_LABEL_OP_GREVIW:
-.CKB_VM_ASM_LABEL_OP_SHFL:
-.CKB_VM_ASM_LABEL_OP_UNSHFL:
-.CKB_VM_ASM_LABEL_OP_SHFLI:
-.CKB_VM_ASM_LABEL_OP_UNSHFLI:
-.CKB_VM_ASM_LABEL_OP_SHFLW:
-.CKB_VM_ASM_LABEL_OP_UNSHFLW:
-.CKB_VM_ASM_LABEL_OP_GORC:
-.CKB_VM_ASM_LABEL_OP_GORCI:
-.CKB_VM_ASM_LABEL_OP_GORCW:
-.CKB_VM_ASM_LABEL_OP_GORCIW:
-.CKB_VM_ASM_LABEL_OP_BMATFLIP:
-.CKB_VM_ASM_LABEL_OP_BMATOR:
-.CKB_VM_ASM_LABEL_OP_BMATXOR:
-  mov $CKB_VM_ASM_RET_SLOWPATH, ARG_RETd
-  jmp .exit
 .p2align 3
 .exit_out_of_bound:
   mov $CKB_VM_ASM_RET_OUT_OF_BOUND, ARG_RETd
@@ -2570,6 +1992,14 @@ ckb_vm_x64_execute:
 .p2align 3
 .exit_invalid_permission:
   mov $CKB_VM_ASM_RET_INVALID_PERMISSION, ARG_RETd
+  jmp .exit
+/*
+ * Some instructions that are difficult to implement will be interpreted and
+ * executed by the rust interpreter
+ */
+.p2align 3
+.exit_slowpath:
+  mov $CKB_VM_ASM_RET_SLOWPATH, ARG_RETd
   jmp .exit
 .p2align 3
 .exit_trace:

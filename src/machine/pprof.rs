@@ -4,6 +4,12 @@ use super::{
 };
 use bytes::Bytes;
 
+// PProfLogger used for debugging or data collection purposes, whenever the
+// VM executes an instruction, it will trigger a user-defined function through
+// a callback.
+//
+// Typical applications:
+//   - https://github.com/nervosnetwork/ckb-vm-pprof
 pub trait PProfLogger<Mac> {
     fn on_step(&mut self, machine: &mut Mac);
     fn on_exit(&mut self, machine: &mut Mac);
@@ -83,7 +89,7 @@ impl<'a, R: Register, M: Memory<R>, Inner: SupportMachine<REG = R, MEM = M>>
     }
 
     pub fn run(&mut self) -> Result<i8, Error> {
-        let decoder = build_decoder::<Inner::REG>(self.isa(), self.version());
+        let decoder = build_decoder::<Inner::REG>(self.isa());
         self.machine.set_running(true);
         while self.machine.running() {
             self.pprof_logger.on_step(&mut self.machine);
