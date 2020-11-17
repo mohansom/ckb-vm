@@ -290,7 +290,7 @@ impl<'a> AsmMachine<'a> {
     }
 
     pub fn run(&mut self) -> Result<i8, Error> {
-        let decoder = build_decoder::<u64>(self.machine.isa(), self.machine.version());
+        let decoder = build_decoder::<u64>(self.machine.isa());
         self.machine.set_running(true);
         while self.machine.running() {
             let result = if let Some(aot_code) = &self.aot_code {
@@ -334,8 +334,9 @@ impl<'a> AsmMachine<'a> {
                         // Here we are calculating the absolute address used in direct threading
                         // from label offsets.
                         trace.thread[i] = unsafe {
-                            u64::from(*(ckb_vm_asm_labels as *const u32).offset(opcode as isize))
-                                + (ckb_vm_asm_labels as *const u32 as u64)
+                            u64::from(
+                                *(ckb_vm_asm_labels as *const u32).offset(opcode as u8 as isize),
+                            ) + (ckb_vm_asm_labels as *const u32 as u64)
                         };
                         i += 1;
                         if end_instruction {
