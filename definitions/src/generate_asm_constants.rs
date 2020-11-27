@@ -8,7 +8,7 @@ use ckb_vm_definitions::{
         instruction_opcode_name, Instruction, MAXIMUM_LEVEL1_OPCODE, MINIMAL_LEVEL1_OPCODE,
     },
     memory::{FLAG_EXECUTABLE, FLAG_FREEZED, FLAG_WRITABLE, FLAG_WXORX_BIT},
-    registers::SP,
+    registers::{RA, SP},
     MEMORY_FRAMES, MEMORY_FRAMESIZE, MEMORY_FRAME_PAGE_SHIFTS, MEMORY_FRAME_SHIFTS,
     RISCV_MAX_MEMORY, RISCV_PAGES, RISCV_PAGESIZE, RISCV_PAGE_SHIFTS,
 };
@@ -61,6 +61,7 @@ fn main() {
     println!("#define CKB_VM_ASM_RET_SLOWPATH {}", RET_SLOWPATH);
     println!();
 
+    println!("#define CKB_VM_ASM_REGISTER_RA {}", RA);
     println!("#define CKB_VM_ASM_REGISTER_SP {}", SP);
     println!();
 

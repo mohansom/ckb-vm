@@ -3,7 +3,7 @@ use super::i::nop;
 use super::register::Register;
 use super::utils::{rd, x, xs};
 use super::{blank_instruction, Instruction, Itype, Rtype, Stype, Utype};
-use ckb_vm_definitions::instructions::{self as insts, FLAG_RVC};
+use ckb_vm_definitions::instructions::{self as insts};
 
 // Notice the location of rs2 in RVC encoding is different from full encoding
 #[inline(always)]
@@ -459,5 +459,5 @@ pub fn factory<R: Register>(instruction_bits: u32) -> Option<Instruction> {
         }
         _ => None,
     };
-    r.map(|e| e | FLAG_RVC)
+    r.map(|e| e | 0x1000000)
 }

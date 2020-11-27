@@ -35,7 +35,7 @@ pub fn factory<R: Register>(instruction_bits: u32) -> Option<Instruction> {
         return None;
     }
     let rv64 = bit_length == 64;
-    match opcode(instruction_bits) {
+    let inst = (|| match opcode(instruction_bits) {
         0b_0110111 => Some(
             Utype::new_s(
                 insts::OP_LUI,
@@ -278,7 +278,8 @@ pub fn factory<R: Register>(instruction_bits: u32) -> Option<Instruction> {
             })
         }
         _ => None,
-    }
+    })();
+    inst.map(|e| e | 0x2000000)
 }
 
 pub fn nop() -> Instruction {

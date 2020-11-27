@@ -16,17 +16,8 @@
 // +flg+ here means a combination of flags, Its format is as follows:
 //
 // +---+---+---+---+---+---+---+---+
-// | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+// | 7 | 6 | 5 | 4 | length >> 1   |
 // +---+---+---+---+---+---+---+---+
-//
-// 0: Indicate whether it is an RVC instruction, mainly used to restore instruction length.
-// 1: Reserved
-// 2: Reserved
-// 3: Reserved
-// 4: Reserved
-// 5: Reserved
-// 6: Reserved
-// 7: Reserved
 //
 // This way each op and register index are in full byte, accessing them
 // will be much faster than the original compact form. Hence we will have
@@ -42,8 +33,6 @@
 pub type Instruction = u64;
 
 pub type InstructionOpcode = u16;
-
-pub const FLAG_RVC: u64 = 0x0100_0000;
 
 // Level-1 IMC
 pub const OP_UNLOADED: InstructionOpcode = 0x00;
@@ -183,9 +172,18 @@ pub const OP_ADDIWU: InstructionOpcode = 0x84;
 pub const OP_ADDUW: InstructionOpcode = 0x85;
 pub const OP_SUBUW: InstructionOpcode = 0x86;
 pub const OP_SLLIUW: InstructionOpcode = 0x87;
+// Level-1 Macro op fusion
+pub const OP_WIDE_MUL: InstructionOpcode = 0x88;
+pub const OP_WIDE_MULU: InstructionOpcode = 0x89;
+pub const OP_WIDE_DIV: InstructionOpcode = 0x8A;
+pub const OP_WIDE_DIVU: InstructionOpcode = 0x8B;
+pub const OP_FAR_JUMP_REL: InstructionOpcode = 0x8C;
+pub const OP_FAR_JUMP_ABS: InstructionOpcode = 0x8D;
+pub const OP_LD_SIGN_EXTENDED_32_CONSTANT: InstructionOpcode = 0x8E;
+pub const OP_LD_ZERO_EXTENDED_32_CONSTANT: InstructionOpcode = 0x8F;
 // Level-1 Custom
-pub const OP_CUSTOM_LOAD_IMM: InstructionOpcode = 0x88;
-pub const OP_CUSTOM_TRACE_END: InstructionOpcode = 0x89;
+pub const OP_CUSTOM_LOAD_IMM: InstructionOpcode = 0x90;
+pub const OP_CUSTOM_TRACE_END: InstructionOpcode = 0x91;
 // Level-2 B
 pub const OP_GREV: InstructionOpcode = 0x00F0;
 pub const OP_GREVI: InstructionOpcode = 0x01F0;
@@ -369,6 +367,14 @@ pub fn instruction_opcode_name(i: InstructionOpcode) -> &'static str {
         OP_ADDUW => "ADDUW",
         OP_SUBUW => "SUBUW",
         OP_SLLIUW => "SLLIUW",
+        OP_WIDE_MUL => "WIDE_MUL",
+        OP_WIDE_MULU => "WIDE_MULU",
+        OP_WIDE_DIV => "WIDE_DIV",
+        OP_WIDE_DIVU => "WIDE_DIVU",
+        OP_FAR_JUMP_REL => "FAR_JUMP_REL",
+        OP_FAR_JUMP_ABS => "FAR_JUMP_ABS",
+        OP_LD_SIGN_EXTENDED_32_CONSTANT => "LD_SIGN_EXTENDED_32_CONSTANT",
+        OP_LD_ZERO_EXTENDED_32_CONSTANT => "LD_ZERO_EXTENDED_32_CONSTANT",
         OP_CUSTOM_LOAD_IMM => "CUSTOM_LOAD_IMM",
         OP_CUSTOM_TRACE_END => "CUSTOM_TRACE_END",
         OP_GREV => "GREV",

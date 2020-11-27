@@ -11,23 +11,19 @@ use ckb_vm::{
     Debugger, DefaultMachineBuilder, Error, Instruction, Register, SupportMachine, Syscalls,
     ISA_IMAC,
 };
-use std::fs::File;
-use std::io::Read;
+use std::fs;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 
 #[test]
 pub fn test_aot_simple64() {
-    let mut file = File::open("tests/programs/simple64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let program_path = "tests/programs/simple64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::default_with_aot_code(&code);
     machine
-        .load_program(&buffer, &vec!["simple".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_ok());
@@ -59,19 +55,16 @@ impl<Mac: SupportMachine> Syscalls<Mac> for CustomSyscall {
 
 #[test]
 pub fn test_aot_with_custom_syscall() {
-    let mut file = File::open("tests/programs/syscall64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = "tests/programs/syscall64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
     let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::default()
         .syscall(Box::new(CustomSyscall {}))
         .build();
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::new(core, Some(&code));
     machine
-        .load_program(&buffer, &vec!["syscall".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_ok());
@@ -96,22 +89,19 @@ impl<Mac: SupportMachine> Debugger<Mac> for CustomDebugger {
 
 #[test]
 pub fn test_aot_ebreak() {
-    let mut file = File::open("tests/programs/ebreak64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = "tests/programs/ebreak64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
     let value = Arc::new(AtomicU8::new(0));
     let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::default()
         .debugger(Box::new(CustomDebugger {
             value: Arc::clone(&value),
         }))
         .build();
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::new(core, Some(&code));
     machine
-        .load_program(&buffer, &vec!["ebreak".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     assert_eq!(value.load(Ordering::Relaxed), 1);
     let result = machine.run();
@@ -125,17 +115,14 @@ fn dummy_cycle_func(_i: Instruction) -> u64 {
 
 #[test]
 pub fn test_aot_simple_cycles() {
-    let mut file = File::open("tests/programs/simple64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = "tests/programs/simple64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
     let asm_core = AsmCoreMachine::new_with_max_cycles(517);
     let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::new(asm_core)
         .instruction_cycle_func(Box::new(dummy_cycle_func))
         .build();
     let mut aot_machine = AotCompilingMachine::load(
-        &buffer,
+        &program,
         Some(Box::new(dummy_cycle_func)),
         ISA_IMAC,
         VERSION0,
@@ -144,7 +131,7 @@ pub fn test_aot_simple_cycles() {
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::new(core, Some(&code));
     machine
-        .load_program(&buffer, &vec!["syscall".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_ok());
@@ -155,18 +142,15 @@ pub fn test_aot_simple_cycles() {
 
 #[test]
 pub fn test_aot_simple_max_cycles_reached() {
-    let mut file = File::open("tests/programs/simple64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = "tests/programs/simple64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
     // Running simple64 should consume 517 cycles using dummy cycle func
     let asm_core = AsmCoreMachine::new_with_max_cycles(500);
     let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::new(asm_core)
         .instruction_cycle_func(Box::new(dummy_cycle_func))
         .build();
     let mut aot_machine = AotCompilingMachine::load(
-        &buffer,
+        &program,
         Some(Box::new(dummy_cycle_func)),
         ISA_IMAC,
         VERSION0,
@@ -175,7 +159,7 @@ pub fn test_aot_simple_max_cycles_reached() {
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::new(core, Some(&code));
     machine
-        .load_program(&buffer, &vec!["syscall".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_err());
@@ -184,16 +168,13 @@ pub fn test_aot_simple_max_cycles_reached() {
 
 #[test]
 pub fn test_aot_trace() {
-    let mut file = File::open("tests/programs/trace64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let program_path = "tests/programs/trace64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::default_with_aot_code(&code);
     machine
-        .load_program(&buffer, &vec!["simple".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_err());
@@ -202,16 +183,13 @@ pub fn test_aot_trace() {
 
 #[test]
 pub fn test_aot_jump0() {
-    let mut file = File::open("tests/programs/jump0_64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let program_path = "tests/programs/jump0_64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::default_with_aot_code(&code);
     machine
-        .load_program(&buffer, &vec!["jump0_64".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_err());
@@ -220,16 +198,13 @@ pub fn test_aot_jump0() {
 
 #[test]
 pub fn test_aot_write_large_address() {
-    let mut file = File::open("tests/programs/write_large_address64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let program_path = "tests/programs/write_large_address64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::default_with_aot_code(&code);
     machine
-        .load_program(&buffer, &vec!["write_large_address64".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_err());
@@ -238,16 +213,13 @@ pub fn test_aot_write_large_address() {
 
 #[test]
 pub fn test_aot_misaligned_jump64() {
-    let mut file = File::open("tests/programs/misaligned_jump64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let program_path = "tests/programs/misaligned_jump64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::default_with_aot_code(&code);
     machine
-        .load_program(&buffer, &vec!["write_large_address64".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_ok());
@@ -255,16 +227,13 @@ pub fn test_aot_misaligned_jump64() {
 
 #[test]
 pub fn test_aot_mulw64() {
-    let mut file = File::open("tests/programs/mulw64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let program_path = "tests/programs/mulw64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::default_with_aot_code(&code);
     machine
-        .load_program(&buffer, &vec!["mulw64".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_ok());
@@ -273,16 +242,13 @@ pub fn test_aot_mulw64() {
 
 #[test]
 pub fn test_aot_invalid_read64() {
-    let mut file = File::open("tests/programs/invalid_read64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let program_path = "tests/programs/invalid_read64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::default_with_aot_code(&code);
     machine
-        .load_program(&buffer, &vec!["invalid_read64".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_err());
@@ -291,16 +257,13 @@ pub fn test_aot_invalid_read64() {
 
 #[test]
 pub fn test_aot_load_elf_crash_64() {
-    let mut file = File::open("tests/programs/load_elf_crash_64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let program_path = "tests/programs/load_elf_crash_64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::default_with_aot_code(&code);
     machine
-        .load_program(&buffer, &vec!["load_elf_crash_64".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert_eq!(result.err(), Some(Error::InvalidPermission));
@@ -308,16 +271,13 @@ pub fn test_aot_load_elf_crash_64() {
 
 #[test]
 pub fn test_aot_wxorx_crash_64() {
-    let mut file = File::open("tests/programs/wxorx_crash_64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let program_path = "tests/programs/wxorx_crash_64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::default_with_aot_code(&code);
     machine
-        .load_program(&buffer, &vec!["wxorx_crash_64".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert_eq!(result.err(), Some(Error::OutOfBound));
@@ -325,49 +285,37 @@ pub fn test_aot_wxorx_crash_64() {
 
 #[test]
 pub fn test_aot_load_elf_section_crash_64() {
-    let mut file = File::open("tests/programs/load_elf_section_crash_64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let result = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0);
+    let program_path = "tests/programs/load_elf_section_crash_64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let result = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0);
     assert_eq!(result.err(), Some(Error::OutOfBound));
 }
 
 #[test]
 pub fn test_aot_load_malformed_elf_crash_64() {
-    let mut file = File::open("tests/programs/load_malformed_elf_crash_64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let result = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0);
+    let program_path = "tests/programs/load_malformed_elf_crash_64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let result = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0);
     assert_eq!(result.err(), Some(Error::ParseError));
 }
 
 #[test]
 pub fn test_aot_flat_crash_64() {
-    let mut file = File::open("tests/programs/flat_crash_64").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let result = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0);
+    let program_path = "tests/programs/flat_crash_64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let result = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0);
     assert_eq!(result.err(), Some(Error::OutOfBound));
 }
 
 #[test]
 pub fn test_aot_alloc_many() {
-    let mut file = File::open("tests/programs/alloc_many").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
-    let mut aot_machine = AotCompilingMachine::load(&buffer, None, ISA_IMAC, VERSION0).unwrap();
+    let program_path = "tests/programs/alloc_many";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let mut aot_machine = AotCompilingMachine::load(&program, None, ISA_IMAC, VERSION0).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::default_with_aot_code(&code);
     machine
-        .load_program(&buffer, &vec!["alloc_many".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_ok());
