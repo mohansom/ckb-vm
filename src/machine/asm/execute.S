@@ -116,6 +116,9 @@
 #define ZERO_ADDRESS \
   (CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_REGISTERS)(MACHINE)
 
+#define RA_ADDRESS \
+  (CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_REGISTERS + CKB_VM_ASM_REGISTER_RA * 8)(MACHINE)
+
 #define SP_ADDRESS \
   (CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_REGISTERS + CKB_VM_ASM_REGISTER_SP * 8)(MACHINE)
 
@@ -266,6 +269,9 @@
 #define WRITE_RD(v) \
   movq v, REGISTER_ADDRESS(RD); \
   movq $0, ZERO_ADDRESS
+
+#define WRITE_RS3(v) \
+  movq v, REGISTER_ADDRESS(RS3); \
 
 #define NEXT_INST \
   movq (INST_ARGS), %rcx; \
@@ -438,14 +444,8 @@ ckb_vm_x64_execute:
   NEXT_INST
 .i_branch_success:
   movq PC_ADDRESS, RS1
-  and $1, FLAG
-  cmp $0, FLAG
-  jnz .i_branch_success_branch1
-  subq $4, RS1
-  jmp .i_branch_success_branch2
-.i_branch_success_branch1:
-  subq $2, RS1
-.i_branch_success_branch2:
+  imul $2, FLAG
+  subq FLAG, RS1
   addq IMMEDIATE, RS1
   movq RS1, PC_ADDRESS
   jmp .prepare_trace
@@ -480,10 +480,10 @@ ckb_vm_x64_execute:
   DECODE_R
   movq REGISTER_ADDRESS(RS2r), RS2r
   cmp $0, RS2r
-  jne .divu_branch2
+  jne .divu_branch1
   WRITE_RD_VALUE($UINT64_MAX, RS2r)
   NEXT_INST
-.divu_branch2:
+.divu_branch1:
   PUSH_RD_IF_RAX
   PUSH_RD_IF_RDX
   movq REGISTER_ADDRESS(RS1), %rax
@@ -565,14 +565,8 @@ ckb_vm_x64_execute:
   DECODE_U
   movq PC_ADDRESS, RS1
   WRITE_RD(RS1)
-  and $1, FLAG
-  cmp $0, FLAG
-  jnz .jal_branch1
-  subq $4, RS1
-  jmp .jal_branch2
-.jal_branch1:
-  subq $2, RS1
-.jal_branch2:
+  imul $2, FLAG
+  subq FLAG, RS1
   addq IMMEDIATE, RS1
   movq RS1, PC_ADDRESS
   jmp .prepare_trace
@@ -692,10 +686,10 @@ ckb_vm_x64_execute:
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_LH:
-    mov VERSION_ADDRESS, TEMP1d
-    cmp $1, TEMP1d
-    jge .CKB_VM_ASM_LABEL_OP_LH_VERSION1
-    jmp .CKB_VM_ASM_LABEL_OP_LH_VERSION0
+  mov VERSION_ADDRESS, TEMP1d
+  cmp $1, TEMP1d
+  jge .CKB_VM_ASM_LABEL_OP_LH_VERSION1
+  jmp .CKB_VM_ASM_LABEL_OP_LH_VERSION0
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_LH_VERSION0:
   DECODE_I
@@ -1980,6 +1974,120 @@ ckb_vm_x64_execute:
   mov RS2rd, RS2rd
   subq RS2r, RS1
   WRITE_RD(RS1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_FAR_JUMP_ABS:
+  DECODE_U
+  movq IMMEDIATE, RS2r
+  movq PC_ADDRESS, TEMP1
+  movq TEMP1, RA_ADDRESS
+  andq $-2, RS2r
+  movq RS2r, PC_ADDRESS
+  jmp .prepare_trace
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_FAR_JUMP_REL:
+  DECODE_U
+  movq PC_ADDRESS, RS2r
+  imul $2, FLAG
+  subq FLAG, RS2r
+  addq IMMEDIATE, RS2r
+  movq PC_ADDRESS, TEMP1
+  movq TEMP1, RA_ADDRESS
+  andq $-2, RS2r
+  movq RS2r, PC_ADDRESS
+  jmp .prepare_trace
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_LD_SIGN_EXTENDED_32_CONSTANT:
+  DECODE_U
+  WRITE_RD(IMMEDIATE)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_LD_ZERO_EXTENDED_32_CONSTANT:
+  DECODE_U
+  shl $32, IMMEDIATE
+  shr $32, IMMEDIATE
+  WRITE_RD(IMMEDIATE)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_WIDE_MUL:
+  DECODE_R4
+  PUSH_RD_IF_RAX
+  PUSH_RD_IF_RDX
+  movq REGISTER_ADDRESS(RS1), %rax
+  imulq REGISTER_ADDRESS(RS2r)
+  MOV_RDX_TO_RS2r
+  movq %rax, TEMP1
+  POP_RD_IF_RDX
+  POP_RD_IF_RAX
+  WRITE_RD(RS2r)
+  WRITE_RS3(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_WIDE_MULU:
+  DECODE_R4
+  PUSH_RD_IF_RAX
+  PUSH_RD_IF_RDX
+  movq REGISTER_ADDRESS(RS1), %rax
+  mulq REGISTER_ADDRESS(RS2r)
+  MOV_RDX_TO_RS2r
+  movq %rax, TEMP1
+  POP_RD_IF_RDX
+  POP_RD_IF_RAX
+  WRITE_RD(RS2r)
+  WRITE_RS3(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_WIDE_DIV:
+  DECODE_R4
+  push RD
+  movq $INT64_MIN, RD
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  cmp RD, RS1
+  jne .wide_div_branch1
+  cmp $-1, RS2r
+  jne .wide_div_branch1
+  xorq TEMP1, TEMP1
+  jmp .wide_div_branch3
+.wide_div_branch1:
+  cmp $0, RS2r
+  jne .wide_div_branch2
+  movq RS1, TEMP1
+  movq $UINT64_MAX, RS1
+  jmp .wide_div_branch3
+.wide_div_branch2:
+  MOV_RS1_TO_RAX
+  cqo
+  idivq RS2r
+  mov %rdx, TEMP1
+  MOV_RAX_TO_RS1
+.wide_div_branch3:
+  pop RD
+  WRITE_RD(RS1)
+  WRITE_RS3(TEMP1)
+  NEXT_INST
+.p2align 3
+.CKB_VM_ASM_LABEL_OP_WIDE_DIVU:
+  DECODE_R4
+  movq REGISTER_ADDRESS(RS1), RS1
+  movq REGISTER_ADDRESS(RS2r), RS2r
+  cmp $0, RS2r
+  jne .wide_divu_branch1
+  WRITE_RD_VALUE($UINT64_MAX, RS2r)
+  WRITE_RS3(RS1)
+  NEXT_INST
+.wide_divu_branch1:
+  PUSH_RD_IF_RAX
+  PUSH_RD_IF_RDX
+  movq RS1, %rax
+  xorq %rdx, %rdx
+  divq RS2r
+  mov %rax, TEMP1
+  MOV_RDX_TO_RS2r
+  POP_RD_IF_RDX
+  POP_RD_IF_RAX
+  WRITE_RD(TEMP1)
+  WRITE_RS3(RS2r)
   NEXT_INST
 .p2align 3
 .exit_out_of_bound:

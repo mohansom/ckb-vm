@@ -2,7 +2,7 @@ use crate::{
     decoder::{build_decoder, Decoder},
     instructions::{
         blank_instruction, execute_instruction, extract_opcode, instruction_length,
-        is_basic_block_end_instruction,
+        is_basic_block_end_instruction, mop,
     },
     machine::aot::AotCode,
     memory::{
@@ -21,6 +21,7 @@ use ckb_vm_definitions::{
         TRACE_ITEM_LENGTH,
     },
     instructions::OP_CUSTOM_TRACE_END,
+    ISA_MOP,
 };
 use libc::c_uchar;
 use std::mem::transmute;
@@ -290,7 +291,10 @@ impl<'a> AsmMachine<'a> {
     }
 
     pub fn run(&mut self) -> Result<i8, Error> {
-        let decoder = build_decoder::<u64>(self.machine.isa());
+        let decoder = mop::Decoder::new(
+            build_decoder::<u64>(self.machine.isa()),
+            self.machine.isa() & ISA_MOP != 0,
+        );
         self.machine.set_running(true);
         while self.machine.running() {
             let result = if let Some(aot_code) = &self.aot_code {
@@ -315,14 +319,13 @@ impl<'a> AsmMachine<'a> {
                     let mut current_pc = pc;
                     let mut i = 0;
                     while i < TRACE_ITEM_LENGTH {
-                        let mut instruction =
-                            decoder.decode(self.machine.memory_mut(), current_pc)?;
+                        let instruction = decoder.decode(self.machine.memory_mut(), current_pc)?;
                         let end_instruction = is_basic_block_end_instruction(instruction);
                         current_pc += u64::from(instruction_length(instruction));
                         // We are storing the offset after current instruction in unused
                         // space of the instruction, so as to allow easy access of this data
                         // within assembly loops.
-                        instruction |= u64::from((current_pc - pc) as u8) << 24;
+                        // instruction |= u64::from((current_pc - pc) as u8) << 24;
                         trace.instructions[i] = instruction;
                         trace.cycles += self
                             .machine

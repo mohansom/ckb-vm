@@ -34,13 +34,15 @@ pub fn factory<R: Register>(instruction_bits: u32) -> Option<Instruction> {
         },
         _ => None,
     };
-    inst_opt.map(|inst| {
-        Rtype::new(
-            inst,
-            rd(instruction_bits),
-            rs1(instruction_bits),
-            rs2(instruction_bits),
-        )
-        .0
-    })
+    inst_opt
+        .map(|inst| {
+            Rtype::new(
+                inst,
+                rd(instruction_bits),
+                rs1(instruction_bits),
+                rs2(instruction_bits),
+            )
+            .0
+        })
+        .map(|e| e | 0x2000000)
 }

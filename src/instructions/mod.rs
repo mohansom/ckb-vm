@@ -7,12 +7,13 @@ pub mod ast;
 pub mod b;
 pub mod i;
 pub mod m;
+pub mod mop;
 pub mod rvc;
 
 pub use self::register::Register;
 use super::Error;
 pub use ckb_vm_definitions::instructions::{
-    self as insts, instruction_opcode_name, Instruction, InstructionOpcode, FLAG_RVC,
+    self as insts, instruction_opcode_name, Instruction, InstructionOpcode,
 };
 pub use execute::{execute, execute_instruction};
 
@@ -264,17 +265,15 @@ pub fn is_basic_block_end_instruction(i: Instruction) -> bool {
         insts::OP_ECALL => true,
         insts::OP_EBREAK => true,
         insts::OP_JAL => true,
+        insts::OP_FAR_JUMP_ABS => true,
+        insts::OP_FAR_JUMP_REL => true,
         _ => is_slowpath_instruction(i),
     }
 }
 
 #[inline(always)]
 pub fn instruction_length(i: Instruction) -> u8 {
-    if i & FLAG_RVC != 0 {
-        2
-    } else {
-        4
-    }
+    (((i >> 24) & 0x0f) << 1) as u8
 }
 
 #[cfg(test)]

@@ -10,23 +10,18 @@ use ckb_vm::{
 use ckb_vm::{run, SparseMemory};
 
 use bytes::Bytes;
-use std::fs::File;
-use std::io::Read;
+use std::fs;
 
 #[cfg(has_asm)]
 #[test]
 pub fn test_b_extension_asm() {
-    let mut file = File::open("tests/programs/b_extension").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer = Bytes::from(buffer);
-
+    let program_path = "tests/programs/b_extension";
+    let program: Bytes = fs::read(program_path).unwrap().into();
     let asm_core = AsmCoreMachine::new(ISA_IMAC | ISA_B, VERSION1, u64::max_value());
     let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::new(asm_core).build();
     let mut machine = AsmMachine::new(core, None);
-
     machine
-        .load_program(&buffer, &["b_extension".into()])
+        .load_program(&program, &[program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_ok());
@@ -36,20 +31,16 @@ pub fn test_b_extension_asm() {
 #[cfg(has_asm)]
 #[test]
 pub fn test_b_extension_aot() {
-    let mut file = File::open("tests/programs/b_extension").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = "tests/programs/b_extension";
+    let program: Bytes = fs::read(program_path).unwrap().into();
     let asm_core = AsmCoreMachine::new(ISA_IMAC | ISA_B, VERSION1, u64::max_value());
     let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::new(asm_core).build();
     let mut aot_machine =
-        AotCompilingMachine::load(&buffer, None, ISA_IMAC | ISA_B, VERSION1).unwrap();
+        AotCompilingMachine::load(&program, None, ISA_IMAC | ISA_B, VERSION1).unwrap();
     let code = aot_machine.compile().unwrap();
     let mut machine = AsmMachine::new(core, Some(&code));
-
     machine
-        .load_program(&buffer, &vec!["b_extension".into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     let result = machine.run();
     assert!(result.is_ok());
@@ -58,12 +49,9 @@ pub fn test_b_extension_aot() {
 
 #[test]
 pub fn test_b_extension_rust() {
-    let mut file = File::open("tests/programs/b_extension").unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer = Bytes::from(buffer);
-
-    let result = run::<u64, SparseMemory<u64>>(&buffer, &vec!["b_extension".into()]);
+    let program_path = "tests/programs/b_extension";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let result = run::<u64, SparseMemory<u64>>(&program, &vec![program_path.into()]);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), 0);
 }

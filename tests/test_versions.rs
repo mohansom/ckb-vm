@@ -12,8 +12,7 @@ use ckb_vm::{
     DefaultCoreMachine, DefaultMachine, DefaultMachineBuilder, Error, SparseMemory, WXorXMemory,
     ISA_IMAC,
 };
-use std::fs::File;
-use std::io::Read;
+use std::fs;
 
 type Mem = WXorXMemory<u64, SparseMemory<u64>>;
 
@@ -21,57 +20,45 @@ fn create_rust_machine<'a>(
     program: String,
     version: u32,
 ) -> DefaultMachine<'a, DefaultCoreMachine<u64, Mem>> {
-    let mut file = File::open(format!("tests/programs/{}", program)).unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = format!("tests/programs/{}", program);
+    let program: Bytes = fs::read(&program_path).unwrap().into();
     let core_machine = DefaultCoreMachine::<u64, Mem>::new(ISA_IMAC, version, u64::max_value());
     let mut machine =
         DefaultMachineBuilder::<DefaultCoreMachine<u64, Mem>>::new(core_machine).build();
     machine
-        .load_program(&buffer, &vec![program.into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     machine
 }
 
 fn create_asm_machine<'a>(program: String, version: u32) -> AsmMachine<'a> {
-    let mut file = File::open(format!("tests/programs/{}", program)).unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = format!("tests/programs/{}", program);
+    let program: Bytes = fs::read(&program_path).unwrap().into();
     let asm_core = AsmCoreMachine::new(ISA_IMAC, version, u64::max_value());
     let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::new(asm_core).build();
     let mut machine = AsmMachine::new(core, None);
     machine
-        .load_program(&buffer, &vec![program.into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     machine
 }
 
 fn compile_aot_code(program: String, version: u32) -> AotCode {
-    let mut file = File::open(format!("tests/programs/{}", program)).unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = format!("tests/programs/{}", program);
+    let program: Bytes = fs::read(program_path).unwrap().into();
     let mut aot_machine =
-        AotCompilingMachine::load(&buffer.clone(), None, ISA_IMAC, version).unwrap();
+        AotCompilingMachine::load(&program.clone(), None, ISA_IMAC, version).unwrap();
     aot_machine.compile().unwrap()
 }
 
 fn create_aot_machine<'a>(program: String, code: &'a AotCode, version: u32) -> AsmMachine<'a> {
-    let mut file = File::open(format!("tests/programs/{}", program)).unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = format!("tests/programs/{}", program);
+    let program: Bytes = fs::read(&program_path).unwrap().into();
     let asm_core = AsmCoreMachine::new(ISA_IMAC, version, u64::max_value());
     let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::new(asm_core).build();
     let mut machine = AsmMachine::new(core, Some(code));
     machine
-        .load_program(&buffer, &vec![program.into()])
+        .load_program(&program, &vec![program_path.into()])
         .unwrap();
     machine
 }
@@ -378,16 +365,12 @@ pub fn test_aot_version1_write_at_boundary() {
 
 #[test]
 pub fn test_rust_version0_unaligned64() {
-    let program = "unaligned64";
-    let mut file = File::open(format!("tests/programs/{}", program)).unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = "tests/programs/unaligned64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
     let core_machine = DefaultCoreMachine::<u64, Mem>::new(ISA_IMAC, VERSION0, u64::max_value());
     let mut machine =
         DefaultMachineBuilder::<DefaultCoreMachine<u64, Mem>>::new(core_machine).build();
-    let result = machine.load_program(&buffer, &vec![program.into()]);
+    let result = machine.load_program(&program, &vec![program_path.into()]);
     assert!(result.is_err());
     assert_eq!(result.err(), Some(Error::InvalidPermission));
 }
@@ -402,16 +385,12 @@ pub fn test_rust_version1_unaligned64() {
 
 #[test]
 pub fn test_asm_version0_unaligned64() {
-    let program = "unaligned64";
-    let mut file = File::open(format!("tests/programs/{}", program)).unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = "tests/programs/unaligned64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
     let asm_core = AsmCoreMachine::new(ISA_IMAC, VERSION0, u64::max_value());
     let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::new(asm_core).build();
     let mut machine = AsmMachine::new(core, None);
-    let result = machine.load_program(&buffer, &vec![program.into()]);
+    let result = machine.load_program(&program, &vec![program_path.into()]);
     assert!(result.is_err());
     assert_eq!(result.err(), Some(Error::InvalidPermission));
 }
@@ -426,17 +405,13 @@ pub fn test_asm_version1_unaligned64() {
 
 #[test]
 pub fn test_aot_version0_unaligned64() {
-    let program = "unaligned64";
-    let code = compile_aot_code(program.to_string(), VERSION1);
-    let mut file = File::open(format!("tests/programs/{}", program)).unwrap();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).unwrap();
-    let buffer: Bytes = buffer.into();
-
+    let program_path = "tests/programs/unaligned64";
+    let program: Bytes = fs::read(program_path).unwrap().into();
+    let code = compile_aot_code("unaligned64".to_string(), VERSION1);
     let asm_core = AsmCoreMachine::new(ISA_IMAC, VERSION0, u64::max_value());
     let core = DefaultMachineBuilder::<Box<AsmCoreMachine>>::new(asm_core).build();
     let mut machine = AsmMachine::new(core, Some(&code));
-    let result = machine.load_program(&buffer, &vec![program.into()]);
+    let result = machine.load_program(&program, &vec![program_path.into()]);
     assert!(result.is_err());
     assert_eq!(result.err(), Some(Error::InvalidPermission));
 }

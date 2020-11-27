@@ -1500,7 +1500,7 @@ pub fn execute_instruction<Mac: Machine>(
             let value = rs1_value
                 .overflowing_add(rs2_value)
                 .zero_extend(&Mac::REG::from_u8(32));
-            update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_ADDUW => {
