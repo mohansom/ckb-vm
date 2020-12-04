@@ -1288,6 +1288,98 @@ int aot_pcnt(AotContext* context, riscv_register_t target, AotValue a)
   return DASM_S_OK;
 }
 
+int aot_fsl(AotContext* context, riscv_register_t target, AotValue a, AotValue b, AotValue c)
+{
+  int ret;
+  uint32_t loc1;
+  dasm_State** Dst = &context->d;
+
+  ret = aot_mov_x64(context, X64_RAX, a);
+  if (ret != DASM_S_OK) { return ret; }
+  ret = aot_mov_x64(context, X64_RDX, b);
+  if (ret != DASM_S_OK) { return ret; }
+
+  switch (c.tag) {
+    case AOT_TAG_REGISTER:
+      | op2_x_r mov, rcx, c.value.reg
+      break;
+    case AOT_TAG_IMMEDIATE:
+      | mov ecx, c.value.i
+      break;
+    case AOT_TAG_X64_REGISTER:
+      | mov rcx, Rq(c.value.x64_reg)
+      break;
+  }
+
+  | and cl, 0x7F
+  | cmp cl, 0x3F
+  | jle >1
+  | sub cl, 0x40
+  | xor rax, rdx
+  | xor rdx, rax
+  | xor rax, rdx
+  |1:
+  | cmp cl, 0x00
+  | jnz >2
+  | jmp >3
+  |2:
+  | shl rax, cl
+  | neg cl
+  | add cl, 0x40
+  | shr rdx, cl
+  | or rax, rdx
+  |3:
+  | op2_r_x mov, target, rax
+
+  return DASM_S_OK;
+}
+
+int aot_fsr(AotContext* context, riscv_register_t target, AotValue a, AotValue b, AotValue c)
+{
+  int ret;
+  uint32_t loc1;
+  dasm_State** Dst = &context->d;
+
+  ret = aot_mov_x64(context, X64_RAX, a);
+  if (ret != DASM_S_OK) { return ret; }
+  ret = aot_mov_x64(context, X64_RDX, b);
+  if (ret != DASM_S_OK) { return ret; }
+
+  switch (c.tag) {
+    case AOT_TAG_REGISTER:
+      | op2_x_r mov, rcx, c.value.reg
+      break;
+    case AOT_TAG_IMMEDIATE:
+      | mov ecx, c.value.i
+      break;
+    case AOT_TAG_X64_REGISTER:
+      | mov rcx, Rq(c.value.x64_reg)
+      break;
+  }
+
+  | and cl, 0x7F
+  | cmp cl, 0x3F
+  | jle >1
+  | sub cl, 0x40
+  | xor rax, rdx
+  | xor rdx, rax
+  | xor rax, rdx
+  |1:
+  | cmp cl, 0x00
+  | jnz >2
+  | jmp >3
+  |2:
+  | shr rax, cl
+  | neg cl
+  | add cl, 0x40
+  | shl rdx, cl
+  | or rax, rdx
+  |3:
+  | op2_r_x mov, target, rax
+
+  return DASM_S_OK;
+}
+
 int aot_extend(AotContext* context, riscv_register_t target, AotValue src, AotValue bits, int is_signed)
 {
   uint32_t loc1;

@@ -14,7 +14,7 @@ pub use crate::{
     debugger::Debugger,
     instructions::{Instruction, Register},
     machine::{
-        pprof::PProfMachine, trace::TraceMachine, CoreMachine, DefaultCoreMachine, DefaultMachine,
+        trace::TraceMachine, CoreMachine, DefaultCoreMachine, DefaultMachine,
         DefaultMachineBuilder, InstructionCycleFunc, Machine, SupportMachine,
     },
     memory::{flat::FlatMemory, sparse::SparseMemory, wxorx::WXorXMemory, Memory},

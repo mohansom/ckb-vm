@@ -1446,42 +1446,90 @@ pub fn execute_instruction<Mac: Machine>(
         }
         insts::OP_CRC32B => {
             let i = Rtype(inst);
-            common::crc32(machine, i.rs1(), i.rd(), 8);
+            let rs1_value = &machine.registers()[i.rs1()];
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::crc3232(rs1_value.to_u32(), 8))
+            } else {
+                Mac::REG::from_u64(common::crc3264(rs1_value.to_u64(), 8))
+            };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_CRC32H => {
             let i = Rtype(inst);
-            common::crc32(machine, i.rs1(), i.rd(), 16);
+            let rs1_value = &machine.registers()[i.rs1()];
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::crc3232(rs1_value.to_u32(), 16))
+            } else {
+                Mac::REG::from_u64(common::crc3264(rs1_value.to_u64(), 16))
+            };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_CRC32W => {
             let i = Rtype(inst);
-            common::crc32(machine, i.rs1(), i.rd(), 32);
+            let rs1_value = &machine.registers()[i.rs1()];
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::crc3232(rs1_value.to_u32(), 32))
+            } else {
+                Mac::REG::from_u64(common::crc3264(rs1_value.to_u64(), 32))
+            };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_CRC32CB => {
             let i = Rtype(inst);
-            common::crc32c(machine, i.rs1(), i.rd(), 8);
+            let rs1_value = &machine.registers()[i.rs1()];
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::crc32c32(rs1_value.to_u32(), 8))
+            } else {
+                Mac::REG::from_u64(common::crc32c64(rs1_value.to_u64(), 8))
+            };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_CRC32CH => {
             let i = Rtype(inst);
-            common::crc32c(machine, i.rs1(), i.rd(), 16);
+            let rs1_value = &machine.registers()[i.rs1()];
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::crc32c32(rs1_value.to_u32(), 16))
+            } else {
+                Mac::REG::from_u64(common::crc32c64(rs1_value.to_u64(), 16))
+            };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_CRC32CW => {
             let i = Rtype(inst);
-            common::crc32c(machine, i.rs1(), i.rd(), 32);
+            let rs1_value = &machine.registers()[i.rs1()];
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::crc32c32(rs1_value.to_u32(), 32))
+            } else {
+                Mac::REG::from_u64(common::crc32c64(rs1_value.to_u64(), 32))
+            };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_CRC32D => {
             let i = Rtype(inst);
-            common::crc32(machine, i.rs1(), i.rd(), 64);
+            let rs1_value = &machine.registers()[i.rs1()];
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::crc3232(rs1_value.to_u32(), 64))
+            } else {
+                Mac::REG::from_u64(common::crc3264(rs1_value.to_u64(), 64))
+            };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_CRC32CD => {
             let i = Rtype(inst);
-            common::crc32c(machine, i.rs1(), i.rd(), 64);
+            let rs1_value = &machine.registers()[i.rs1()];
+            let value = if Mac::REG::BITS == 32 {
+                Mac::REG::from_u32(common::crc32c32(rs1_value.to_u32(), 64))
+            } else {
+                Mac::REG::from_u64(common::crc32c64(rs1_value.to_u64(), 64))
+            };
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_BMATOR => {
@@ -1531,19 +1579,7 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
             let rs3_value = &machine.registers()[i.rs3()];
-            let value = if Mac::REG::BITS == 32 {
-                Mac::REG::from_u32(common::fsl32(
-                    rs1_value.to_u32(),
-                    rs2_value.to_u32(),
-                    rs3_value.to_u32(),
-                ))
-            } else {
-                Mac::REG::from_u64(common::fsl64(
-                    rs1_value.to_u64(),
-                    rs2_value.to_u64(),
-                    rs3_value.to_u64(),
-                ))
-            };
+            let value = rs1_value.fsl(rs3_value, rs2_value);
             update_register(machine, i.rd(), value);
             None
         }
@@ -1552,13 +1588,11 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
             let rs3_value = &machine.registers()[i.rs3()];
-            let value = Mac::REG::from_u32(common::fsl32(
-                rs1_value.to_u32(),
-                rs2_value.to_u32(),
-                rs3_value.to_u32(),
-            ));
-            let r = value.sign_extend(&Mac::REG::from_u8(32));
-            update_register(machine, i.rd(), r);
+            let upper = rs1_value.clone() << Mac::REG::from_u8(32);
+            let lower = rs3_value.clone().zero_extend(&Mac::REG::from_u8(32));
+            let value = upper | lower;
+            let value = value.rol(rs2_value) >> Mac::REG::from_u8(32);
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_FSR => {
@@ -1566,19 +1600,7 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
             let rs3_value = &machine.registers()[i.rs3()];
-            let value = if Mac::REG::BITS == 32 {
-                Mac::REG::from_u32(common::fsr32(
-                    rs1_value.to_u32(),
-                    rs2_value.to_u32(),
-                    rs3_value.to_u32(),
-                ))
-            } else {
-                Mac::REG::from_u64(common::fsr64(
-                    rs1_value.to_u64(),
-                    rs2_value.to_u64(),
-                    rs3_value.to_u64(),
-                ))
-            };
+            let value = rs1_value.fsr(rs3_value, rs2_value);
             update_register(machine, i.rd(), value);
             None
         }
@@ -1587,34 +1609,20 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &machine.registers()[i.rs2()];
             let rs3_value = &machine.registers()[i.rs3()];
-            let value = Mac::REG::from_u32(common::fsr32(
-                rs1_value.to_u32(),
-                rs2_value.to_u32(),
-                rs3_value.to_u32(),
-            ));
-            let r = value.sign_extend(&Mac::REG::from_u8(32));
-            update_register(machine, i.rd(), r);
+            let upper = rs1_value.clone() << Mac::REG::from_u8(32);
+            let lower = rs3_value.clone().zero_extend(&Mac::REG::from_u8(32));
+            let value = upper | lower;
+            let value = value.ror(rs2_value) >> Mac::REG::from_u8(32);
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_FSRI => {
             let i = Itype(inst);
             let rs1_value = &machine.registers()[i.rs1()];
             let immediate = i.immediate();
-            let rs2_value = Mac::REG::from_u32(immediate & 0x3f);
+            let rs2_value = &Mac::REG::from_u32(immediate & 0x3f);
             let rs3_value = &machine.registers()[immediate as usize >> 7];
-            let value = if Mac::REG::BITS == 32 {
-                Mac::REG::from_u32(common::fsr32(
-                    rs1_value.to_u32(),
-                    rs2_value.to_u32(),
-                    rs3_value.to_u32(),
-                ))
-            } else {
-                Mac::REG::from_u64(common::fsr64(
-                    rs1_value.to_u64(),
-                    rs2_value.to_u64(),
-                    rs3_value.to_u64(),
-                ))
-            };
+            let value = rs1_value.fsr(rs3_value, rs2_value);
             update_register(machine, i.rd(), value);
             None
         }
@@ -1623,11 +1631,10 @@ pub fn execute_instruction<Mac: Machine>(
             let rs1_value = &machine.registers()[i.rs1()];
             let rs2_value = &Mac::REG::from_u32(i.rs2() as u32);
             let rs3_value = &machine.registers()[i.rs3()];
-            let value = Mac::REG::from_u32(common::fsr32(
-                rs1_value.to_u32(),
-                rs2_value.to_u32(),
-                rs3_value.to_u32(),
-            ));
+            let upper = rs1_value.clone() << Mac::REG::from_u8(32);
+            let lower = rs3_value.clone().zero_extend(&Mac::REG::from_u8(32));
+            let value = upper | lower;
+            let value = value.ror(rs2_value) >> Mac::REG::from_u8(32);
             update_register(machine, i.rd(), value);
             None
         }
@@ -1709,7 +1716,7 @@ pub fn execute_instruction<Mac: Machine>(
             let value = rs1_value
                 .overflowing_add(rs2_value)
                 .zero_extend(&Mac::REG::from_u8(32));
-            update_register(machine, i.rd(), value.sign_extend(&Mac::REG::from_u8(32)));
+            update_register(machine, i.rd(), value);
             None
         }
         insts::OP_ADDUW => {
