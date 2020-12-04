@@ -1,5 +1,5 @@
 use super::{
-    super::super::instructions::ast::{ActionOp1, ActionOp2, SignActionOp2, Value},
+    super::super::instructions::ast::{ActionOp1, ActionOp2, ActionOp3, SignActionOp2, Value},
     Write,
 };
 use crate::Error;
@@ -104,6 +104,8 @@ extern "C" {
     fn aot_clz(c: *mut AotContext, target: u32, a: AotValue) -> c_int;
     fn aot_ctz(c: *mut AotContext, target: u32, a: AotValue) -> c_int;
     fn aot_pcnt(c: *mut AotContext, target: u32, a: AotValue) -> c_int;
+    fn aot_fsl(c: *mut AotContext, target: u32, a: AotValue, b: AotValue, c: AotValue) -> c_int;
+    fn aot_fsr(c: *mut AotContext, target: u32, a: AotValue, b: AotValue, c: AotValue) -> c_int;
 
     fn aot_mov_pc(c: *mut AotContext, value: AotValue) -> c_int;
     fn aot_cond_pc(
@@ -435,6 +437,23 @@ impl Emitter {
                     },
                     SignActionOp2::Extend => unsafe {
                         aot_extend(self.aot, target_register as u32, a_value, b_value, signed)
+                    },
+                };
+                check_aot_result(result)?;
+                self.allocator.restore(saved);
+                Ok(())
+            }
+            Value::Op3(op, a, b, c) => {
+                let saved = self.allocator.save();
+                let a_value = self.emit_value(a)?;
+                let b_value = self.emit_value(b)?;
+                let c_value = self.emit_value(c)?;
+                let result = match op {
+                    ActionOp3::Fsl => unsafe {
+                        aot_fsl(self.aot, target_register as u32, a_value, b_value, c_value)
+                    },
+                    ActionOp3::Fsr => unsafe {
+                        aot_fsr(self.aot, target_register as u32, a_value, b_value, c_value)
                     },
                 };
                 check_aot_result(result)?;

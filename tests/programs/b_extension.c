@@ -1,6 +1,4 @@
 // https://github.com/riscv/riscv-bitmanip/tree/master/tests
-#include <stdio.h>
-
 #include "rvintrin.h"
 #include "test_zbb.c"
 #include "test_zbs.c"
