@@ -1865,24 +1865,14 @@ ckb_vm_x64_execute:
   movq REGISTER_ADDRESS(RS1), RS1
   movq REGISTER_ADDRESS(RS2r), RS2r
   movq REGISTER_ADDRESS(RS3), RS3
-  and $0x3f, RS2rd
-  mov RS1d, TEMP1d
-  cmp $0x1f, RS2rd
-  jle .fslw_branch1
-  mov RS3d, TEMP1d
-  sub $0x20, RS2rd
-  mov RS1d, RS3d
-.fslw_branch1:
-  test RS2rd, RS2rd
-  je .fslw_branch2
-  mov $0x20, %ecx
-  sub RS2rd, %ecx
-  shr %cl, RS3d
+  shl $32, RS1
+  mov RS3d, RS3d
+  or RS3, RS1
   mov RS2rb, %cl
-  shl %cl, TEMP1d
-  or RS3d, TEMP1d
-.fslw_branch2:
-  WRITE_RD(TEMP1)
+  and $0x3f, %cl
+  rol %cl, RS1
+  shr $32, RS1
+  WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_FSR:
@@ -1915,24 +1905,14 @@ ckb_vm_x64_execute:
   movq REGISTER_ADDRESS(RS1), RS1
   movq REGISTER_ADDRESS(RS2r), RS2r
   movq REGISTER_ADDRESS(RS3), RS3
-  and $0x3f, RS2rd
-  mov RS1d, TEMP1d
-  cmp $0x1f, RS2rd
-  jle .fslrw_branch1
-  mov RS3d, TEMP1d
-  sub $0x20, RS2rd
-  mov RS1d, RS3d
-.fslrw_branch1:
-  test RS2rd, RS2rd
-  je .fslrw_branch2
-  mov $0x20, %ecx
-  sub RS2rd, %ecx
-  shl %cl, RS3d
+  shl $32, RS3
+  mov RS1d, RS1d
+  or RS3, RS1
   mov RS2rb, %cl
-  shr %cl, TEMP1d
-  or RS3d, TEMP1d
-.fslrw_branch2:
-  WRITE_RD(TEMP1)
+  and $0x3f, %cl
+  ror %cl, RS1
+  mov RS1d, RS1d
+  WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_FSRI:
@@ -1967,24 +1947,14 @@ ckb_vm_x64_execute:
   DECODE_R4
   movq REGISTER_ADDRESS(RS1), RS1
   movq REGISTER_ADDRESS(RS3), RS3
-  and $0x3f, RS2rd
-  mov RS1d, TEMP1d
-  cmp $0x1f, RS2rd
-  jle .fslriw_branch1
-  mov RS3d, TEMP1d
-  sub $0x20, RS2rd
-  mov RS1d, RS3d
-.fslriw_branch1:
-  test RS2rd, RS2rd
-  je .fslriw_branch2
-  mov $0x20, %ecx
-  sub RS2rd, %ecx
-  shl %cl, RS3d
+  shl $32, RS3
+  mov RS1d, RS1d
+  or RS3, RS1
   mov RS2rb, %cl
-  shr %cl, TEMP1d
-  or RS3d, TEMP1d
-.fslriw_branch2:
-  WRITE_RD(TEMP1)
+  and $0x3f, %cl
+  ror %cl, RS1
+  mov RS1d, RS1d
+  WRITE_RD(RS1)
   NEXT_INST
 .p2align 3
 .CKB_VM_ASM_LABEL_OP_SH1ADD:
