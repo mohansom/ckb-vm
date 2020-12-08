@@ -33,7 +33,7 @@ fn calculate_slot(addr: u64) -> usize {
     (addr as usize >> TRACE_ADDRESS_SHIFTS) & TRACE_MASK
 }
 
-pub struct TraceMachine<'a, Inner> {
+pub struct TraceMachine<'a, Inner: CoreMachine> {
     pub machine: DefaultMachine<'a, Inner>,
 
     traces: Vec<Trace>,

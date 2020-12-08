@@ -154,10 +154,14 @@ pub trait SupportMachine: CoreMachine {
         args: &[Bytes],
         stack_start: u64,
         stack_size: u64,
+        enable_args_initialize: bool,
     ) -> Result<u64, Error> {
         // We are enforcing WXorX now, there's no need to call init_pages here
         // since all the required bits are already set.
         self.set_register(SP, Self::REG::from_u64(stack_start + stack_size));
+        if !enable_args_initialize {
+            return Ok(0);
+        }
         // First value in this array is argc, then it contains the address(pointer)
         // of each argv object.
         let mut values = vec![Self::REG::from_u64(args.len() as u64)];
@@ -321,6 +325,7 @@ pub struct DefaultMachine<'a, Inner> {
     instruction_cycle_func: Option<Box<InstructionCycleFunc>>,
     debugger: Option<Box<dyn Debugger<Inner> + 'a>>,
     syscalls: Vec<Box<dyn Syscalls<Inner> + 'a>>,
+    enable_args_initialize: bool,
     exit_code: i8,
 }
 
@@ -428,6 +433,10 @@ impl<Inner: CoreMachine> Display for DefaultMachine<'_, Inner> {
 }
 
 impl<'a, Inner: SupportMachine> DefaultMachine<'a, Inner> {
+    pub fn enable_args_initialize(&mut self, enable: bool) {
+        self.enable_args_initialize = enable;
+    }
+
     pub fn load_program(&mut self, program: &Bytes, args: &[Bytes]) -> Result<u64, Error> {
         let elf_bytes = self.load_elf(program, true)?;
         for syscall in &mut self.syscalls {
@@ -440,6 +449,7 @@ impl<'a, Inner: SupportMachine> DefaultMachine<'a, Inner> {
             args,
             (RISCV_MAX_MEMORY - DEFAULT_STACK_SIZE) as u64,
             DEFAULT_STACK_SIZE as u64,
+            self.enable_args_initialize,
         )?;
         let bytes = elf_bytes
             .checked_add(stack_bytes)
@@ -500,7 +510,7 @@ pub struct DefaultMachineBuilder<'a, Inner> {
     syscalls: Vec<Box<dyn Syscalls<Inner> + 'a>>,
 }
 
-impl<'a, Inner> DefaultMachineBuilder<'a, Inner> {
+impl<'a, Inner: CoreMachine> DefaultMachineBuilder<'a, Inner> {
     pub fn new(inner: Inner) -> Self {
         Self {
             inner,
@@ -529,11 +539,13 @@ impl<'a, Inner> DefaultMachineBuilder<'a, Inner> {
     }
 
     pub fn build(self) -> DefaultMachine<'a, Inner> {
+        let enable_args_initialize = self.inner.version() < VERSION1;
         DefaultMachine {
             inner: self.inner,
             instruction_cycle_func: self.instruction_cycle_func,
             debugger: self.debugger,
             syscalls: self.syscalls,
+            enable_args_initialize,
             exit_code: 0,
         }
     }

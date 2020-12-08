@@ -1,7 +1,7 @@
 extern crate ckb_vm;
 
 use bytes::Bytes;
-use ckb_vm::{run, SparseMemory};
+use ckb_vm::{DefaultCoreMachine, DefaultMachineBuilder, SparseMemory, TraceMachine, WXorXMemory};
 use std::fs::File;
 use std::io::Read;
 
@@ -12,7 +12,15 @@ pub fn test_minimal_with_no_args() {
     file.read_to_end(&mut buffer).unwrap();
     let buffer: Bytes = buffer.into();
 
-    let result = run::<u32, SparseMemory<u32>>(&buffer, &vec!["minimal".into()]);
+    let core_machine = DefaultCoreMachine::<u32, WXorXMemory<u32, SparseMemory<u32>>>::latest();
+    let mut machine = DefaultMachineBuilder::new(core_machine).build();
+    machine.enable_args_initialize(true);
+    let mut trace_machine = TraceMachine::new(machine);
+    trace_machine
+        .load_program(&buffer, &vec!["minimal".into()])
+        .unwrap();
+    let result = trace_machine.run();
+
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), 1);
 }
@@ -24,7 +32,15 @@ pub fn test_minimal_with_a() {
     file.read_to_end(&mut buffer).unwrap();
     let buffer: Bytes = buffer.into();
 
-    let result = run::<u32, SparseMemory<u32>>(&buffer, &vec!["minimal".into(), "a".into()]);
+    let core_machine = DefaultCoreMachine::<u32, WXorXMemory<u32, SparseMemory<u32>>>::latest();
+    let mut machine = DefaultMachineBuilder::new(core_machine).build();
+    machine.enable_args_initialize(true);
+    let mut trace_machine = TraceMachine::new(machine);
+    trace_machine
+        .load_program(&buffer, &vec!["minimal".into(), "a".into()])
+        .unwrap();
+    let result = trace_machine.run();
+
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), 2);
 }
@@ -36,7 +52,15 @@ pub fn test_minimal_with_b() {
     file.read_to_end(&mut buffer).unwrap();
     let buffer: Bytes = buffer.into();
 
-    let result = run::<u32, SparseMemory<u32>>(&buffer, &vec!["minimal".into(), "".into()]);
+    let core_machine = DefaultCoreMachine::<u32, WXorXMemory<u32, SparseMemory<u32>>>::latest();
+    let mut machine = DefaultMachineBuilder::new(core_machine).build();
+    machine.enable_args_initialize(true);
+    let mut trace_machine = TraceMachine::new(machine);
+    trace_machine
+        .load_program(&buffer, &vec!["minimal".into(), "".into()])
+        .unwrap();
+    let result = trace_machine.run();
+
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), 0);
 }
