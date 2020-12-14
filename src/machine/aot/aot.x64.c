@@ -332,7 +332,6 @@ int aot_link(AotContext* context, size_t *szp)
    * rcx: index of the frame
    */
   |->zeroed_memory:
-  | prepcall
   | shl rcx, CKB_VM_ASM_MEMORY_FRAME_SHIFTS
   | lea rArg2, machine->memory
   | add rcx, rArg2
@@ -345,12 +344,13 @@ int aot_link(AotContext* context, size_t *szp)
   | ret
   |.if WIN
     |->random_memory:
-    | prepcall
+    | push rdi
+    | push rcx
     | mov64 rax, (uint64_t)srand
     | mov rArg1d, machine->chaos_seed
     | call rax
-    | postcall
-    | prepcall
+    | pop rcx
+    | pop rdi
     | shl rcx, CKB_VM_ASM_MEMORY_FRAME_SHIFTS
     | lea rsi, machine->memory
     | add rsi, rcx
@@ -369,14 +369,15 @@ int aot_link(AotContext* context, size_t *szp)
     | add rsi, 1
     | jmp <1
     |2:
+    | push rdi
     | mov64 rax, (uint64_t)rand
     | call rax
+    | pop rdi
     | mov machine->chaos_seed, eax
     | postcall
     | ret
   |.else
     |->random_memory:
-    | prepcall
     | shl rcx, CKB_VM_ASM_MEMORY_FRAME_SHIFTS
     | lea rsi, machine->memory
     | add rsi, rcx
@@ -402,9 +403,10 @@ int aot_link(AotContext* context, size_t *szp)
     | ret
   |.endif
   |->inited_memory:
-  | lea r8, machine->chaos_mode
-  | mov r8b, byte [r8]
-  | cmp r8b, 0
+  | prepcall
+  | lea rdx, machine->chaos_mode
+  | mov dl, byte [rdx]
+  | cmp dl, 0
   | jne >1
   | jmp ->zeroed_memory
   |1:
