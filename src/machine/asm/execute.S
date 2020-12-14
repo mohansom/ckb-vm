@@ -195,20 +195,18 @@
   je 6f; \
   PREPCALL; \
   call rand; \
-  mov %al, %r15b; \
   POSTCALL; \
+  mov %al, (TEMP1); \
   POSTCALL_RAX; \
-  mov %r15b, (TEMP1); \
   sub $1, %rcx; \
   add $1, TEMP1; \
   jmp 5b; \
 6: \
   PREPCALL; \
   call rand; \
-  mov %eax, %r15d; \
   POSTCALL; \
-  POSTCALL_RAX; \
-  mov %r15d, CHAOS_SEED;
+  mov %eax, CHAOS_SEED; \
+  POSTCALL_RAX
 #else
 #define RANDOM_MEMORY \
   shl $CKB_VM_ASM_MEMORY_FRAME_SHIFTS, TEMP1; \
@@ -222,10 +220,9 @@
   movq MACHINE, ARG1; \
   addq $CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_CHAOS_SEED, ARG1; \
   CALL_RAND_R; \
-  mov %al, %r15b; \
   POSTCALL; \
+  mov %al, (TEMP1); \
   POSTCALL_RAX; \
-  mov %r15b, (TEMP1); \
   sub $1, %rcx; \
   add $1, TEMP1; \
   jmp 5b; \
