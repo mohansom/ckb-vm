@@ -23,41 +23,40 @@
 
 #ifdef IS_WINDOWS
 #define PREPCALL \
+  push %rax; \
   push %rdi; \
   push %rsi; \
-  push %rax; \
   push %rcx; \
   push %rdx; \
   push %r8; \
   push %r9; \
-  sub $32, %rsp;
+  sub $32, %rsp
 #define POSTCALL \
   add $32, %rsp; \
   pop %r9; \
   pop %r8; \
   pop %rdx; \
   pop %rcx; \
-  pop %rax; \
   pop %rsi; \
-  pop %rdi;
+  pop %rdi
 #else
 #define PREPCALL \
+  push %rax; \
   push %rdi; \
   push %rsi; \
-  push %rax; \
   push %rcx; \
   push %rdx; \
   push %r8; \
-  push %r9;
+  push %r9
 #define POSTCALL \
   pop %r9; \
   pop %r8; \
   pop %rdx; \
   pop %rcx; \
-  pop %rax; \
   pop %rsi; \
-  pop %rdi;
+  pop %rdi
 #endif
+#define POSTCALL_RAX pop %rax
 
 /* rax is used both in Microsoft x64 and System V AMD64 ABI */
 #define ARG_RETd %eax
@@ -177,7 +176,8 @@
   xor ARG2, ARG2; \
   movq $CKB_VM_ASM_MEMORY_FRAMESIZE, ARG3; \
   CALL_MEMSET; \
-  POSTCALL;
+  POSTCALL; \
+  POSTCALL_RAX
 
 #ifdef IS_WINDOWS
 #define RANDOM_MEMORY \
@@ -185,6 +185,7 @@
   mov CHAOS_SEED, ARG1; \
   call srand; \
   POSTCALL; \
+  POSTCALL_RAX; \
   shl $CKB_VM_ASM_MEMORY_FRAME_SHIFTS, TEMP1; \
   addq $CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_MEMORY, TEMP1; \
   addq MACHINE, TEMP1; \
@@ -196,6 +197,7 @@
   call rand; \
   mov %al, %r15b; \
   POSTCALL; \
+  POSTCALL_RAX; \
   mov %r15b, (TEMP1); \
   sub $1, %rcx; \
   add $1, TEMP1; \
@@ -205,6 +207,7 @@
   call rand; \
   mov %eax, %r15d; \
   POSTCALL; \
+  POSTCALL_RAX; \
   mov %r15d, CHAOS_SEED;
 #else
 #define RANDOM_MEMORY \
@@ -221,6 +224,7 @@
   CALL_RAND_R; \
   mov %al, %r15b; \
   POSTCALL; \
+  POSTCALL_RAX; \
   mov %r15b, (TEMP1); \
   sub $1, %rcx; \
   add $1, TEMP1; \
