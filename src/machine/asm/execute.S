@@ -233,6 +233,7 @@
  * Make sure TEMP1 stores the frame index.
  */
 #define INITED_MEMORY \
+  PREPCALL; \
   movzbl CKB_VM_ASM_ASM_CORE_MACHINE_OFFSET_CHAOS_MODE(MACHINE), TEMP2d; \
   cmp $0, TEMP2d; \
   jne 3f; \
@@ -240,7 +241,9 @@
   jmp 4f; \
 3: \
   RANDOM_MEMORY; \
-4:
+4: \
+  POSTCALL; \
+  POSTCALL_RAX
 
 #define CHECK_READ(address_reg, length) \
   movq address_reg, TEMP1; \
